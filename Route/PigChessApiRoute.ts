@@ -1,6 +1,5 @@
 import { Router,Request, Response } from "express";
 import { PgSqlMgr } from "../Control/PgSqlMgr";
-import * as PgSqlModel from "../Model/PgSqlModel";
 import * as Model from "../Model/Model";
 import jwt from 'jsonwebtoken';
 import { RedisMgr } from "../Control/RedisMgr";
