@@ -1,0 +1,101 @@
+import { Router,Request, Response } from "express";
+import { PgSqlMgr } from "../Control/PgSqlMgr";
+import * as PgSqlModel from "../Model/PgSqlModel";
+import * as Model from "../Model/Model";
+import jwt from 'jsonwebtoken';
+import { RedisMgr } from "../Control/RedisMgr";
+import { Defer, RedisUserType } from "../const";
+import { generateRandomCode, GetVarifyCode } from "../Control/EmailCol";
+export const PigChessApiRoute=Router()
+const secretkey='PigChess'
+
+PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response) => {
+    const reqbody:Model.UserLoginReq = req.body;
+    let sql = "select find_user($1,$2,$3,$4,$5)";
+    const resbody:Model.UserLoginRes={id:Model.HttpId.UserLogin,error:Model.ErrorCode.Fali, tokenstr:"",userid:-1};
+    let defer:Defer=new Defer(()=>{
+        res.send(resbody);
+    })
+
+    let redisresult=await RedisMgr.getInstance().GetRedis(RedisUserType.LoginCache+reqbody.UserName);
+    if(redisresult){
+        let usermessage=JSON.parse(redisresult);
+        if(usermessage.password===reqbody.PassWord){
+            const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})
+            resbody.tokenstr=tokenStr;
+            resbody.error=Model.ErrorCode.Success;
+            resbody.userid=usermessage.id;
+            return;
+        }
+    }
+    PgSqlMgr.getInstance()
+    .Query(sql, [reqbody.uid, reqbody.UserName, reqbody.Email, reqbody.Phone, reqbody.PassWord])
+    .then(async(sqlresult)=>{
+        if(!sqlresult || sqlresult.rowCount===0){}
+        else
+        {
+            const userData = JSON.parse(sqlresult.rows[0])
+            if(userData.exits===1)
+            {
+                const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})
+                resbody.error=Model.ErrorCode.Success;
+                resbody.tokenstr=tokenStr;
+                resbody.userid=userData.id;
+                await RedisMgr.getInstance().SetRedisExpire(RedisUserType.LoginCache+reqbody.UserName, JSON.stringify(sqlresult.rows[0]),43200);
+            }
+        }
+        defer.dispose();
+    })
+    .catch((error) => {
+            console.error('SQL Execution Error:', error);
+            defer.dispose();
+    });
+});
+
+PigChessApiRoute.post('/PigChessApi/UserRegistered', async(req:Request, res:Response) => {
+    const reqbody:Model.UserRegisteredReq= req.body;
+    const resbody:Model.UserRegisteredRes={id:Model.HttpId.UserRegistered, error:Model.ErrorCode.Fali};
+
+    let defer:Defer=new Defer(()=>{
+        res.send(resbody);
+    })
+
+    const redisresult= await RedisMgr.getInstance().GetRedis(RedisUserType.VarifyCode+reqbody.Email)
+    if(redisresult && redisresult === reqbody.VarifyCode) {
+        let sql="select insert_user($1, $2, $3, $4, $5)";
+        PgSqlMgr.getInstance()
+        .Query(sql, [reqbody.UserName, reqbody.Email, reqbody.PassWord, reqbody.NickName, reqbody.Phone])
+        .then((sqlresult) => {
+            if (!sqlresult || sqlresult.rowCount===0) {}
+            else
+            {
+                resbody.error=Model.ErrorCode.Success;
+            }
+            defer.dispose();
+        })
+        .catch((error) => {
+            console.error('SQL Execution Error:', error);
+            defer.dispose();
+        });
+    }
+});
+
+PigChessApiRoute.post('/PigChessApi/GetVarifyCode',async (req:Request, res:Response)=>{
+    const reqbody:Model.VarifyCodeReq= req.body;
+    const resbody:Model.VarifyCodeRes={id:Model.HttpId.VarifyCode, error:Model.ErrorCode.Fali};
+
+    let defer:Defer=new Defer(()=>{
+        res.send(resbody);
+    })
+    let code:string=generateRandomCode();
+    await RedisMgr.getInstance().SetRedisExpire(RedisUserType.VarifyCode+reqbody.Email,code,300)
+    GetVarifyCode(reqbody.Email,code)
+    .then((result)=>{
+        if(result) resbody.error=Model.ErrorCode.Success;
+        defer.dispose();
+    })
+    .catch((error)=>{
+        console.error('GetVarifyCode Error:', error);
+        defer.dispose();
+    })
+});
