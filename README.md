@@ -21,54 +21,103 @@ export enum GateServerErrorCode{
 }
 ```
 
-## Req格式:
-```typescript
+# Http Req / Res 对照表 (左右两栏)
 
-路由路径:/PigChessApi/UserLogin
-export interface UserLoginReq {
-    id: HttpId;
-    uid: number;
-    UserName: string;
-    Email: string;
-    NickName: string;
-    Phone: string;
-    PassWord: string;
-}
+---
 
-路由路径:/PigChessApi/UserRegistered
-export interface UserRegisteredReq{
-    id:HttpId;
-    UserName: string;
-    Email: string;
-    PassWord: string;
-    NickName: string;
-    Phone: string;
-    VarifyCode: string;
-}
+<div style="display:flex; gap:20px;">
 
-路由路径:/PigChessApi/GetVarifyCode
-export interface VarifyCodeReq{
-    id:HttpId;
-    Email: string;
-}
-```
+  <div style="flex:1;">
 
-## Res格式:
-```typescript
-export interface UserLoginRes{
-    id:HttpId;
-    error:ErrorCode;
-    tokenstr: string;
-    userid: number;
-}
+  ```ts
+  /// UserLogin=10001
+  路由路径:/PigChessApi/UserLogin
+  export interface UserLoginReq {
+      id: HttpId;
+      uid: number;
+      UserName: string;
+      Email: string;
+      NickName: string;
+      Phone: string;
+      PassWord: string;
+  }
+  ```
+  </div>
 
-export interface UserRegisteredRes{
-    id:HttpId;
-    error:ErrorCode;
-}
+  <div style="flex:1;">
 
-export interface VarifyCodeRes{
-    id:HttpId;
-    error:ErrorCode;
-}
-```
+  ```ts
+  /// UserLogin=10001
+  export interface UserLoginRes {
+      id: HttpId;
+      error: ErrorCode;
+      tokenstr: string;
+      userid: number;
+  }
+  ```
+  </div>
+
+</div>
+
+---
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  /// UserRegistered=10002
+  路由路径:/PigChessApi/UserRegistered
+  export interface UserRegisteredReq {
+      id: HttpId;
+      UserName: string;
+      Email: string;
+      PassWord: string;
+      NickName: string;
+      Phone: string;
+      VarifyCode: string;
+  }
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  /// UserRegistered=10002
+  export interface UserRegisteredRes {
+      id: HttpId;
+      error: ErrorCode;
+  }
+  ```
+  </div>
+
+</div>
+
+---
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  /// VarifyCode=10003
+  路由路径:/PigChessApi/GetVarifyCode
+  export interface VarifyCodeReq {
+      id: HttpId;
+      Email: string;
+  }
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  /// VarifyCode=10003
+  export interface VarifyCodeRes {
+      id: HttpId;
+      error: ErrorCode;
+  }
+  ```
+  </div>
+
+</div>
