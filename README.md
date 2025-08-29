@@ -1,7 +1,7 @@
 # GateServer
 
 * port=6000
-* host=http://119.29.174.60
+* host=http://
 
 ## id格式:
 ```typescript
