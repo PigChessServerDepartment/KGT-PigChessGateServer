@@ -9,8 +9,6 @@ const transport =nodemailer.createTransport({
     auth:{
         user:process.env.Email_User,
         pass:process.env.Email_Pass
-        // user:'13726292263@163.com',
-        // pass:"RORNNGSSYSCODJNG"
     }
 })
 
