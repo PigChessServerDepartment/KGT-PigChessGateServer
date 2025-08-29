@@ -25,12 +25,13 @@ export enum GateServerErrorCode{
 
 ---
 
+## UserLogin = 10001
+
 <div style="display:flex; gap:20px;">
 
   <div style="flex:1;">
 
   ```ts
-  /// UserLogin=10001
   路由路径:/PigChessApi/UserLogin
   export interface UserLoginReq {
       id: HttpId;
@@ -47,7 +48,6 @@ export enum GateServerErrorCode{
   <div style="flex:1;">
 
   ```ts
-  /// UserLogin=10001
   export interface UserLoginRes {
       id: HttpId;
       error: ErrorCode;
@@ -61,12 +61,13 @@ export enum GateServerErrorCode{
 
 ---
 
+## UserRegistered = 10002
+
 <div style="display:flex; gap:20px;">
 
   <div style="flex:1;">
 
   ```ts
-  /// UserRegistered=10002
   路由路径:/PigChessApi/UserRegistered
   export interface UserRegisteredReq {
       id: HttpId;
@@ -83,7 +84,6 @@ export enum GateServerErrorCode{
   <div style="flex:1;">
 
   ```ts
-  /// UserRegistered=10002
   export interface UserRegisteredRes {
       id: HttpId;
       error: ErrorCode;
@@ -95,12 +95,13 @@ export enum GateServerErrorCode{
 
 ---
 
+## VarifyCode = 10003
+
 <div style="display:flex; gap:20px;">
 
   <div style="flex:1;">
 
   ```ts
-  /// VarifyCode=10003
   路由路径:/PigChessApi/GetVarifyCode
   export interface VarifyCodeReq {
       id: HttpId;
@@ -112,7 +113,6 @@ export enum GateServerErrorCode{
   <div style="flex:1;">
 
   ```ts
-  /// VarifyCode=10003
   export interface VarifyCodeRes {
       id: HttpId;
       error: ErrorCode;
