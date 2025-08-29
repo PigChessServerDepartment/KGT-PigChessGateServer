@@ -30,7 +30,7 @@ export enum GateServerErrorCode{
 
 ---
 
-## UserLogin = 10001
+### UserLogin = 10001
 
 <div style="display:flex; gap:20px;">
 
@@ -66,7 +66,7 @@ export enum GateServerErrorCode{
 
 ---
 
-## UserRegistered = 10002
+### UserRegistered = 10002
 
 <div style="display:flex; gap:20px;">
 
@@ -100,7 +100,7 @@ export enum GateServerErrorCode{
 
 ---
 
-## VarifyCode = 10003
+### VarifyCode = 10003
 
 <div style="display:flex; gap:20px;">
 
