@@ -27,7 +27,7 @@ export enum GateServerErrorCode{
 - [UserLogin = 10001](#userlogin--10001)
 - [UserRegistered = 10002](#userregistered--10002)
 - [VarifyCode = 10003](#varifycode--10003)
-
+- [UpdateUserAreaData = 10004](#updateuserareadata--10004)
 ---
 
 ### UserLogin = 10001
@@ -127,3 +127,40 @@ export enum GateServerErrorCode{
   </div>
 
 </div>
+
+### UpdateUserAreaData = 10004
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+路由路径:/PigChessAdmin/UpdateUserAreaData
+export interface UpdateUserAreaDataReq{
+    id:HttpId;
+    p_area_id: string;
+    p_user_id: number;
+    p_coin_change_num: number;
+    p_diamond_change_num: number;
+    p_pigcoin_change_num: number;
+    p_rankpoint_change_num: number;
+    p_exppoint_change_num: number;
+    p_S00_change_num: number;
+    p_S01_change_num: number;
+}
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+export interface UpdateUserAreaDataRes{
+    id:HttpId;
+    error:ErrorCode;
+}
+  ```
+  </div>
+
+</div>
+
+---
