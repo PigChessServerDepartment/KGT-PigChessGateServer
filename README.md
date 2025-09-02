@@ -136,6 +136,9 @@ export enum GateServerErrorCode{
 
   ```ts
 路由路径:/PigChessAdmin/UpdateUserAreaData
+该方法属于同时修改一个给表项的多个数据,不用修改的直接填0就行
+p_area_id是用户所在的区目前只有1区,填1就行,后续会建立区名称与区号的映射表
+p_user_id为登录后获取到的用户唯一id属于必须填写的项
 export interface UpdateUserAreaDataReq{
     id:HttpId;
     p_area_id: string;

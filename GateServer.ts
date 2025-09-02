@@ -10,7 +10,7 @@ const server = new http.Server(app);
 
 //所有post/get
 app.use(bodyParser.json());
-app.use(expressjwt({ secret: secretkey, algorithms: ['HS256'] }).unless({path:[/^\/PigChessApi\//]}))
+// app.use(expressjwt({ secret: secretkey, algorithms: ['HS256'] }).unless({path:[/^\/PigChessApi\//]}))
 app.use((err:Error, req:Request, res:Response, next:NextFunction) => {
     if (err.name === 'UnauthorizedError') {
         console.error(err);
