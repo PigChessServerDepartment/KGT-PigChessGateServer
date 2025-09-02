@@ -7,6 +7,7 @@ export enum HttpId{
     UserLogin=10001,
     UserRegistered=10002,
     VarifyCode=10003,
+    UpdateUserAreaData=10004,
 }
 
 export interface UserLoginReq{
@@ -25,6 +26,7 @@ export interface UserLoginRes{
     error:ErrorCode;
     tokenstr: string;
     userid: number;
+    iconurl: string;
 }
 
 export interface UserRegisteredReq{
@@ -48,6 +50,24 @@ export interface VarifyCodeReq{
 }
 
 export interface VarifyCodeRes{
+    id:HttpId;
+    error:ErrorCode;
+}
+
+export interface UpdateUserAreaDataReq{
+    id:HttpId;
+    p_area_id: string;
+    p_user_id: number;
+    p_coin_change_num: number;
+    p_diamond_change_num: number;
+    p_pigcoin_change_num: number;
+    p_rankpoint_change_num: number;
+    p_exppoint_change_num: number;
+    p_S00_change_num: number;
+    p_S01_change_num: number;
+}
+
+export interface UpdateUserAreaDataRes{
     id:HttpId;
     error:ErrorCode;
 }

@@ -58,6 +58,7 @@ export enum GateServerErrorCode{
       error: ErrorCode;
       tokenstr: string;
       userid: number;
+      iconurl: string;
   }
   ```
   </div>

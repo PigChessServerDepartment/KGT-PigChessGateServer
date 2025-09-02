@@ -1,9 +1,9 @@
 import { Router,Request, Response } from "express";
 import { PgSqlMgr } from "../Control/PgSqlMgr";
 import * as Model from "../Model/Model";
-import jwt from 'jsonwebtoken';
 import { RedisMgr } from "../Control/RedisMgr";
 import { Defer, RedisUserType } from "../const";
+import jwt from 'jsonwebtoken';
 import { generateRandomCode, GetVarifyCode } from "../Control/EmailCol";
 export const PigChessApiRoute=Router()
 const secretkey='PigChess'
@@ -11,7 +11,7 @@ const secretkey='PigChess'
 PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response) => {
     const reqbody:Model.UserLoginReq = req.body;
     let sql = "select find_user($1,$2,$3,$4,$5)";
-    const resbody:Model.UserLoginRes={id:Model.HttpId.UserLogin,error:Model.ErrorCode.Fali, tokenstr:"",userid:-1};
+    const resbody:Model.UserLoginRes={id:Model.HttpId.UserLogin,error:Model.ErrorCode.Fali, tokenstr:"",userid:-1, iconurl:""};
     let defer:Defer=new Defer(()=>{
         res.send(resbody);
     })
@@ -24,6 +24,7 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
             resbody.tokenstr=tokenStr;
             resbody.error=Model.ErrorCode.Success;
             resbody.userid=usermessage.id;
+            resbody.iconurl=usermessage.iconurl;
             return;
         }
     }
@@ -40,6 +41,7 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
                 resbody.error=Model.ErrorCode.Success;
                 resbody.tokenstr=tokenStr;
                 resbody.userid=userData.id;
+                resbody.iconurl=userData.iconurl;
                 await RedisMgr.getInstance().SetRedisExpire(RedisUserType.LoginCache+reqbody.UserName, JSON.stringify(sqlresult.rows[0]),43200);
             }
         }

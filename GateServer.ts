@@ -3,6 +3,7 @@ import express, { NextFunction, Request, Response } from "express";
 import bodyParser from 'body-parser';
 import { expressjwt } from "express-jwt";
 import { PigChessApiRoute } from './Route/PigChessApiRoute';
+import { PigChessAdminRoute } from './Route/PigChessAdminRote';
 const secretkey='PigChess'
 const app = express();
 const server = new http.Server(app);
@@ -19,6 +20,7 @@ app.use((err:Error, req:Request, res:Response, next:NextFunction) => {
     }
 });
 app.use(PigChessApiRoute);
+app.use(PigChessAdminRoute);
 
 function main(){
     const port = 6000;
