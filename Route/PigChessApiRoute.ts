@@ -129,10 +129,10 @@ PigChessApiRoute.post('/PigChessApi/GetVarifyCode',async (req:Request, res:Respo
     let code:string=generateRandomCode();
     switch(reqbody.Purpose){
         case Model.VarifyPurpose.Registered:
-            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.RegisteredVarifyCode+reqbody.Email,code,300)
+            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.RegisteredVarifyCode+reqbody.Email,code,180)
             break;
         case Model.VarifyPurpose.UpdatePassword:
-            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.UpdatePasswordVarifyCode+reqbody.Email,code,300)
+            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.UpdatePasswordVarifyCode+reqbody.Email,code,180)
             break;
         default:
             defer.dispose();
