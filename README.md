@@ -152,6 +152,7 @@ sequenceDiagram
   </div>
 
 </div>
+
 ---
 
 ### UpdateUserAreaData = 10004
@@ -238,7 +239,7 @@ export interface UpdateUserDataRes{
   <div style="flex:1;">
 
   ```ts
-路由路径:/PigChessAdmin/UpdateUserPassword
+路由路径:/PigChessApi/UpdateUserPassword
 使用前要求先调用VarifyCode,Purpose为VarifyPurpose.UpdatePassword获取到邮箱的varify_code先
 export interface UpdateUserPasswordReq{
     id:HttpId;
