@@ -34,6 +34,7 @@ export class Defer {
 
 export enum RedisUserType{
     LoginCache="LoginCache_",
-    VarifyCode="VarifyCode_",
+    RegisteredVarifyCode="Registered_VarifyCode_",
+    UpdatePasswordVarifyCode="UpdatePassword_VarifyCode_",
     UserInfo="UserInfo_",
 }

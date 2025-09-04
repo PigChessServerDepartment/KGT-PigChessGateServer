@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import { VarifyPurpose } from '../Model/Model';
 dotenv.config();
 
 const transport =nodemailer.createTransport({
@@ -20,8 +21,20 @@ export function generateRandomCode() {
     return code;
 }
 
-export async function GetVarifyCode(emailto:string,uniqueId:string) {
+export async function GetVarifyCode(emailto:string,uniqueId:string,Purpose:VarifyPurpose) {
     console.log("email is ", emailto)
+    let PurposeStr:string="";
+    switch(Purpose){
+        case VarifyPurpose.Registered:
+            PurposeStr="注册";
+            break;
+        case VarifyPurpose.UpdatePassword:
+            PurposeStr="修改密码";
+            break;
+        default:
+            PurposeStr="操作";
+            break;
+    }
     try{
         // let uniqueId = uuidv4();
         // console.log("uniqueId is ", uniqueId)
@@ -33,7 +46,7 @@ export async function GetVarifyCode(emailto:string,uniqueId:string) {
             subject: '验证码',
             // text: text_str,
             html:
-             `<h2>PigChess注册验证码${uniqueId}</h2>
+             `<h2>PigChess${Purpose}验证码${uniqueId}</h2>
              `
              ,
         };

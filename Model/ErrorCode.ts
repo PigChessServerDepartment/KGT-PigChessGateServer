@@ -64,4 +64,5 @@ export enum WebServerErrorCode{
 export enum GateServerErrorCode{
     Fali=0,
     Success=1,
+    VarifyCodeErr=2,
 }

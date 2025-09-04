@@ -15,7 +15,24 @@ export interface UpdateUserAreaDataReq{
     p_S01_change_num: number;
 }
 
-export interface UpdateUserAreaDataRes{
+export interface UpdateUserDataReq{
+    p_id : number,
+    p_username:string,
+    p_password:string,
+    p_new_username:string,
+    p_new_email:string,
+    p_new_phone:string,
+    p_new_nickname :string,
+    p_new_iconurl:string,
+    p_new_iconBase64:string
+}
+
+export interface UpdateUserPasswordReq{
+    p_email: string,
+    p_new_password: string,
+}
+
+export interface SqlAllRes{
     errorcode:number;
     error:string;
 }

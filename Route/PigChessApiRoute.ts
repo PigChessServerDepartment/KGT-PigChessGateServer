@@ -61,7 +61,7 @@ PigChessApiRoute.post('/PigChessApi/UserRegistered', async(req:Request, res:Resp
         res.send(resbody);
     })
 
-    const redisresult= await RedisMgr.getInstance().GetRedis(RedisUserType.VarifyCode+reqbody.Email)
+    const redisresult= await RedisMgr.getInstance().GetRedis(RedisUserType.RegisteredVarifyCode+reqbody.Email)
     if(redisresult && redisresult === reqbody.VarifyCode) {
         let sql="select insert_user($1, $2, $3, $4, $5)";
         PgSqlMgr.getInstance()
@@ -79,6 +79,44 @@ PigChessApiRoute.post('/PigChessApi/UserRegistered', async(req:Request, res:Resp
             defer.dispose();
         });
     }
+    else
+    {
+        resbody.error=Model.ErrorCode.VarifyCodeErr;
+        defer.dispose();
+    }
+});
+
+
+PigChessApiRoute.post('/PigChessApi/UpdateUserPassword', async(req:Request, res:Response) => {
+    const reqbody:Model.UpdateUserPasswordReq= req.body;
+    const resbody:Model.UpdateUserPasswordRes={id:Model.HttpId.UpdateUserPassword, error:Model.ErrorCode.Fali};
+    
+    let defer:Defer=new Defer(()=>{
+        res.send(resbody);
+    })
+    
+    const redisresult= await RedisMgr.getInstance().GetRedis(RedisUserType.UpdatePasswordVarifyCode+reqbody.p_email)
+    if(redisresult && redisresult === reqbody.varify_code) {
+        let sql="select update_user_password($1, $2)";
+        PgSqlMgr.getInstance()
+        .Query(sql, [reqbody.p_email, reqbody.p_new_password])
+        .then((sqlresult) => {
+            if (!sqlresult || sqlresult.rowCount===0) {}
+            else
+            {
+                resbody.error=Model.ErrorCode.Success;
+            }
+            defer.dispose();
+        })
+        .catch((error) => {
+            console.error('SQL Execution Error:', error);
+            defer.dispose();
+        });
+    }
+    else{
+        resbody.error=Model.ErrorCode.VarifyCodeErr;
+        defer.dispose();
+    }
 });
 
 PigChessApiRoute.post('/PigChessApi/GetVarifyCode',async (req:Request, res:Response)=>{
@@ -89,8 +127,18 @@ PigChessApiRoute.post('/PigChessApi/GetVarifyCode',async (req:Request, res:Respo
         res.send(resbody);
     })
     let code:string=generateRandomCode();
-    await RedisMgr.getInstance().SetRedisExpire(RedisUserType.VarifyCode+reqbody.Email,code,300)
-    GetVarifyCode(reqbody.Email,code)
+    switch(reqbody.Purpose){
+        case Model.VarifyPurpose.Registered:
+            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.RegisteredVarifyCode+reqbody.Email,code,300)
+            break;
+        case Model.VarifyPurpose.UpdatePassword:
+            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.UpdatePasswordVarifyCode+reqbody.Email,code,300)
+            break;
+        default:
+            defer.dispose();
+            return;
+    }
+    GetVarifyCode(reqbody.Email,code,reqbody.Purpose)
     .then((result)=>{
         if(result) resbody.error=Model.ErrorCode.Success;
         defer.dispose();
