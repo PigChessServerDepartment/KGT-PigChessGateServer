@@ -140,7 +140,7 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'errordetail', SqlLERRM
+            'errordetail', SQLERROR
         );
         RETURN res;
 END
@@ -174,7 +174,7 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'errordetail', SqlLERRM
+            'errordetail', SQLERROR
         );
         RETURN res;
 END
@@ -251,11 +251,142 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'error', SqlLERRM
+            'error', SQLERROR
         );
         RETURN res;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION insert_friend_apply(
+    p_from_userid INTEGER DEFAULT NULL,
+    p_to_userid INTEGER DEFAULT NULL,
+    p_apply_from_area VARCHAR(50) DEFAULT NULL,
+    p_apply_to_area VARCHAR(50) DEFAULT NULL,
+    p_from_playername VARCHAR(50) DEFAULT NULL,
+    p_to_playername VARCHAR(50) DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    IF p_from_userid IS NULL OR p_to_userid IS NULL OR p_apply_from_area IS NULL OR p_apply_to_area IS NULL OR p_from_playername IS NULL OR p_to_playername IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'errordetail', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    -- 检查是否已经存在未处理的申请
+    IF EXISTS (SELECT 1 FROM friend_apply_table 
+               WHERE from_userid = p_from_userid 
+                 AND to_userid = p_to_userid 
+                 AND status = 0) THEN
+        UPDATE friend_apply_table
+        SET create_time = now()
+        WHERE from_userid = p_from_userid 
+          AND to_userid = p_to_userid 
+          AND status = 0;
+        res= json_build_object(
+            'errorcode', 1,
+            'errordetail', 'Application already exists'
+        );
+        RETURN res;
+    END IF;
+
+    INSERT INTO friend_apply_table (create_time, from_userid, to_userid, apply_from_area, apply_to_area, from_playername, to_playername, status)
+    VALUES (now(), p_from_userid, p_to_userid, p_apply_from_area, p_apply_to_area, p_from_playername, p_to_playername, 0);
+    res= json_build_object(
+        'errorcode', 1,
+        'errordetail', 'insert success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'errordetail', SQLERROR
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_friend_apply_status(
+    p_from_userid INTEGER DEFAULT NULL,
+    p_to_userid INTEGER DEFAULT NULL,
+    p_status INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    updated_row RECORD;
+BEGIN
+    IF p_from_userid IS NULL OR p_to_userid IS NULL OR p_status IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'errordetail', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+
+    UPDATE friend_apply_table
+    SET status = p_status
+    WHERE from_userid = p_from_userid AND to_userid = p_to_userid
+    RETURNING * INTO updated_row;
+    PERFORM insert_friend(p_from_userid,p_to_userid,updated_row.apply_to_area,updated_row.to_playername);
+    PERFORM insert_friend(p_to_userid,p_from_userid,updated_row.apply_from_area,updated_row.from_playername);
+
+    res= json_build_object(
+        'errorcode', 1,
+        'errordetail', 'update success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'errordetail', SQLERROR
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION insert_friend(
+    p_userid INTEGER DEFAULT NULL,
+    p_friend_userid INTEGER DEFAULT NULL,
+    p_friend_in_whitch_area VARCHAR(50) DEFAULT NULL,
+    p_friend_playername VARCHAR(50) DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    IF p_userid IS NULL OR p_friend_userid IS NULL OR p_friend_in_whitch_area IS NULL OR p_friend_playername IS NUll THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'errordetail', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    INSERT INTO pigchessfriend (create_time, userid, friend_userid, friend_in_whitch_area,friend_playername)
+    VALUES (now(), p_userid, p_friend_userid, p_friend_in_whitch_area, p_friend_playername);
+    res= json_build_object(
+        'errorcode', 1,
+        'errordetail', 'insert success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'errordetail', SQLERROR
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION trigger_fun_Del_Which_TimeOut()
 RETURNS TRIGGER AS $body$
@@ -268,4 +399,8 @@ BEGIN
     RETURN NEW;
 END;
 $body$ LANGUAGE plpgsql;
+
+
+
+
 
