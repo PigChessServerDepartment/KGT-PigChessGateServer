@@ -10,6 +10,7 @@ export enum HttpId{
     UpdateUserAreaData=10004,
     UpdateUserData=10005,
     UpdateUserPassword=10006,
+    UpdateUserAccessToken=10007
 }
 export enum VarifyPurpose{
     Registered=1,
@@ -30,7 +31,8 @@ export interface UserLoginReq{
 export interface UserLoginRes{
     id:HttpId;
     error:ErrorCode;
-    tokenstr: string;
+    refresh_token: string;
+    access_token: string;
     userid: number;
     iconurl: string;
 }
@@ -106,5 +108,16 @@ export interface UpdateUserPasswordReq{
 
 export interface UpdateUserPasswordRes{
     id:HttpId;
+    error:ErrorCode;
+}
+
+export interface UpdateUserAccessTokenReq{
+    id:HttpId;
+    UserName:string;
+}
+
+export interface UpdateUserAccessTokenRes{
+    id:HttpId;
+    access_token:string;
     error:ErrorCode;
 }

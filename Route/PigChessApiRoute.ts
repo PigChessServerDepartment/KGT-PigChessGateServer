@@ -3,15 +3,49 @@ import { PgSqlMgr } from "../Control/PgSqlMgr";
 import * as Model from "../Model/Model";
 import { RedisMgr } from "../Control/RedisMgr";
 import { Defer, RedisUserType } from "../const";
-import jwt from 'jsonwebtoken';
+import jwt, { JsonWebTokenError } from 'jsonwebtoken';
 import { generateRandomCode, GetVarifyCode } from "../Control/EmailCol";
+import dotenv from 'dotenv';
+dotenv.config();
 export const PigChessApiRoute=Router()
-const secretkey='PigChess'
+// const secretkey='PigChess'
+
+async function CheckAndUpdateRefreshToken(usermessage:any,reqbody:any){
+    if(usermessage.token && usermessage.token_createtime){
+        const tokenAge=(new Date().getTime()-new Date(usermessage.token_createtime).getTime())/1000;
+        if(tokenAge<3600*24*7-60*60){
+            return usermessage.token;
+        }   
+        else
+        {
+            const refresh_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.REFRESH_TOKEN_SECRET!,{expiresIn:'7d'})
+            const pgslres=await PgSqlMgr.getInstance()
+            .Query(
+                "select update_user_token($1,$2,$3)",
+                [usermessage.id,usermessage.token,usermessage.token_createtime]
+            );
+            console.log('update_user_token: ',pgslres);
+            return refresh_token;
+        }
+    }
+    else
+    {
+        const refresh_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.REFRESH_TOKEN_SECRET!,{expiresIn:'7d'})
+        const pgslres=await PgSqlMgr.getInstance()
+        .Query(
+            "select update_user_token($1,$2,$3)",
+            [usermessage.id,usermessage.token,usermessage.token_createtime]
+        );
+        console.log('update_user_token: ',pgslres);
+        return refresh_token;
+    }
+}
 
 PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response) => {
     const reqbody:Model.UserLoginReq = req.body;
     let sql = "select find_user($1,$2,$3,$4,$5)";
-    const resbody:Model.UserLoginRes={id:Model.HttpId.UserLogin,error:Model.ErrorCode.Fali, tokenstr:"",userid:-1, iconurl:""};
+    const resbody:Model.UserLoginRes=
+    {id:Model.HttpId.UserLogin,error:Model.ErrorCode.Fali, access_token:"",refresh_token:"",userid:-1, iconurl:""};
     let defer:Defer=new Defer(()=>{
         res.send(resbody);
     })
@@ -20,11 +54,18 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
     if(redisresult){
         let usermessage=JSON.parse(redisresult);
         if(usermessage.password===reqbody.PassWord){
-            const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})
-            resbody.tokenstr=tokenStr;
+            const access_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.ACCESS_TOKEN_SECRET!,{expiresIn:'1h'})
+            resbody.access_token=access_token;
             resbody.error=Model.ErrorCode.Success;
             resbody.userid=usermessage.id;
             resbody.iconurl=usermessage.iconurl;
+
+            //更新长效token和token_createtime
+            usermessage.token_createtime=new Date().toISOString();
+            resbody.refresh_token=await CheckAndUpdateRefreshToken(usermessage,reqbody);
+
+            usermessage.token=resbody.refresh_token;
+            await RedisMgr.getInstance().SetRedisExpire(RedisUserType.LoginCache+reqbody.UserName, JSON.stringify(usermessage),43200);
             return;
         }
     }
@@ -37,12 +78,20 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
             const userData = JSON.parse(sqlresult.rows[0])
             if(userData.exits===1)
             {
-                const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})
+                // const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})
+                const access_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.ACCESS_TOKEN_SECRET!,{expiresIn:'1h'})
                 resbody.error=Model.ErrorCode.Success;
-                resbody.tokenstr=tokenStr;
+                resbody.access_token=access_token;
                 resbody.userid=userData.id;
                 resbody.iconurl=userData.iconurl;
-                await RedisMgr.getInstance().SetRedisExpire(RedisUserType.LoginCache+reqbody.UserName, JSON.stringify(sqlresult.rows[0]),43200);
+
+                //更新长效token和token_createtime
+                userData.token_createtime=new Date().toISOString();
+                resbody.refresh_token=await CheckAndUpdateRefreshToken(userData,reqbody)
+                userData.token=resbody.refresh_token;
+                // defer.dispose();
+                //缓存用户登录信息，设置过期时间12小时
+                await RedisMgr.getInstance().SetRedisExpire(RedisUserType.LoginCache+reqbody.UserName, JSON.stringify(userData),43200);
             }
         }
         defer.dispose();

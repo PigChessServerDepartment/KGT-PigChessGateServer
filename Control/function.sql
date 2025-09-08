@@ -10,10 +10,13 @@ DECLARE
     user_exists INTEGER;
     user_iconurl VARCHAR(255):=NULL;
     userid INTEGER;
+    user_token VARCHAR(255):=NULL;
+    user_token_create_time TIMESTAMP:=NULL;
     res JSON;
 BEGIN
     -- 检查用户是否存在且密码正确
-    SELECT COUNT(*), id, iconurl INTO user_exists, userid, user_iconurl
+    SELECT COUNT(*), id, iconurl,refresh_token,token_createtime 
+    INTO user_exists, userid, user_iconurl, user_token, user_token_create_time
     FROM PigChessUser 
     WHERE (p_id IS NOT NULL AND id = p_id)
        OR (p_username IS NOT NULL AND UserName = p_username)
@@ -21,13 +24,18 @@ BEGIN
        OR (p_phone IS NOT NULL AND Phone = p_phone)
        AND PassWord = p_password
     GROUP BY id;
-    
+    IF user_token_create_time IS NOT NULL AND user_token_create_time < now() - interval '7 days' THEN
+        user_token := NULL;
+    END IF;
+
     IF user_exists > 0 THEN
         res:= json_build_object(
             'id',userid,
             'username', p_username,
             'password', p_password,
             'iconurl', user_iconurl,
+            'token', user_token,
+            'token_createtime', user_token_create_time,
             'exits',user_exists,
             'errorcode',1,
             'error','success'
@@ -38,6 +46,8 @@ BEGIN
             'username', p_username,
             'password', p_password,
             'iconurl', user_iconurl,
+            'token', NULL,
+            'token_createtime', NULL,
             'exits',user_exists,
             'errorcode',0,
             'error','user not found or password incorrect'
@@ -52,11 +62,48 @@ EXCEPTION
             'username', p_username,
             'password', p_password,
             'iconurl', NULL,
+            'token', NULL,
+            'token_createtime', NULL,
             'exits',0,
             'errorcode',0,
-            'error', SQLERRM
+            'error', SQLERROR
         );
 END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION uptate_user_token(
+    p_id INTEGER DEFAULT NULL,
+    p_token VARCHAR(255) DEFAULT NULL,
+    p_createtime TIMESTAMP DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    res JSON;
+BEGIN
+    IF p_id IS NULL OR p_token IS NULL THEN
+        res:= json_build_object(
+            'errorcode', 0,
+            'errordetail', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    UPDATE pigchessuser
+    SET refresh_token = p_token,
+        token_createtime = p_createtime
+    WHERE id = p_id;
+    res:= json_build_object(
+        'errorcode', 1,
+        'errordetail', 'updatetoken success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        res:=json_build_object(
+            'errorcode', 0,
+            'errordetail', SQLERROR
+        );
+        RETURN res;
+END
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION insert_user(
