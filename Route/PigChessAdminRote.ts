@@ -14,7 +14,7 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateUserAreaData', async(req:Request, 
         error:Model.ErrorCode.Fali,
     }
     let defer:Defer=new Defer(()=>{
-        res.send(resbody);
+        res.send(JSON.stringify(resbody));
     })
     let sql ="select update_pigchessarea_data($1,$2,$3,$4,$5,$6,$7,$8,$9)";
     let sqlres=await PgSqlMgr.getInstance().Query(sql,[
@@ -52,7 +52,7 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateUserData', async(req:Request, res:
         error:Model.ErrorCode.Fali,
     }
     let defer:Defer=new Defer(()=>{
-        res.send(resbody);
+        res.send(JSON.stringify(resbody));
     })
     let sql ="select update_user_data($1,$2,$3,$4,$5,$6,$7,$8)";
     let sqlres=await PgSqlMgr.getInstance().Query(sql,[

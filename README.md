@@ -7,21 +7,33 @@
 ```typescript
 与下面Res和Req对应
 export enum HttpId{
+    RotueError=400,
+
     UserLogin=10001,
     UserRegistered=10002,
     VarifyCode=10003,
     UpdateUserAreaData=10004,
     UpdateUserData=10005,
     UpdateUserPassword=10006,
+    UpdateUserAccessToken=10007
 }
 ```
+## 接口Token限定
+```ts
+要求必须在header携带access_token(有效时间1小时)
+app.use('/PigChessAdmin',expressjwt({ secret: process.env.ACCESS_TOKEN_SECRET!, algorithms: ['HS256'] }))
 
+要求必须在header携带refresh_token(有效时间7天)
+app.use('/PigChessTokenApi',expressjwt({ secret: process.env.REFRESH_TOKEN_SECRET!, algorithms: ['HS256'] }))
+```
+---
 ## ErrorCode格式
 ```typescript
 export enum GateServerErrorCode{
     Fali=0,
     Success=1,
     VarifyCodeErr=2,
+    UnauthorizedError=401,
 }
 ```
 ## VarifyPurpose
@@ -35,16 +47,57 @@ export enum VarifyPurpose{
 # Http Req / Res 对照表 (左右两栏)
 
 ## 目录
+- [RotueError = 400](#RotueError--400)
 - [UserLogin = 10001](#userlogin--10001)
 - [UserRegistered = 10002](#userregistered--10002)
 - [VarifyCode = 10003](#varifycode--10003)
 - [UpdateUserAreaData = 10004](#updateuserareadata--10004)
 - [UpdateUserData = 10005](#UpdateUserData--10005)
 - [UpdateUserPassword = 10006](#UpdateUserPassword--10006)
+- [UpdateUserAccessToken = 10007](#UpdateUserAccessToken--10007)
 ---
+### RotueError=400
+路由错误通用id,具体错误看错误码的枚举类型
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface RotueErrorRes{
+    id:HttpId;
+    error:ErrorCode
+}
+  ```
+  </div>
+
+</div>
+
+---
+
 
 ### UserLogin = 10001
 
+```mermaid
+sequenceDiagram
+    participant A as 用户
+    participant B as 系统
+    participant C as Redis
+    participant D as PgSql
+    A->>B:发送UserLoginReq
+    B->>C:查看缓存
+    B->>B:若缓存有效则校验缓存中refresh_token(7d)
+    B->>C:refresh_token过期更新缓存
+    B->>D:refresh_token过期更新数据库
+    B->>A:返回UserLoginRes,结束
+    B->>D:若缓存无效则请求用户数据
+    D->>D:校验请求
+    B->>B:校验refresh_token(7d)
+    D->>B:返回用户数据
+    B->>C:refresh_token过期更新缓存
+    B->>D:refresh_token过期更新数据库
+    B->>A:返回UserLoginRes,结束
+
+```
 <div style="display:flex; gap:20px;">
 
   <div style="flex:1;">
@@ -66,13 +119,16 @@ export enum VarifyPurpose{
   <div style="flex:1;">
 
   ```ts
-  export interface UserLoginRes {
-      id: HttpId;
-      error: ErrorCode;
-      tokenstr: string;
-      userid: number;
-      iconurl: string;
-  }
+refresh_token长效token,7天有效期,用来获取敏感接口的access_token
+access_token短效token,1小时有效期,用来访问数据增删改查的接口,每次登录会先给一次,后面过期了要通过UpdateUserAccessTokenRes重新获取
+export interface UserLoginRes{
+    id:HttpId;
+    error:ErrorCode;
+    refresh_token: string;
+    access_token: string;
+    userid: number;
+    iconurl: string;
+}
   ```
   </div>
 
@@ -255,6 +311,47 @@ export interface UpdateUserPasswordReq{
   ```ts
 export interface UpdateUserPasswordRes{
     id:HttpId;
+    error:ErrorCode;
+}
+  ```
+  </div>
+
+</div>
+
+---
+
+### UpdateUserAccessToken = 10007
+```mermaid
+sequenceDiagram
+    participant A as 用户
+    participant B as 系统
+    A->>B:请求access_token限定的接口
+    B->>A:若返回id为RotueError(400),error为401错误码
+    A->>B:应发送UpdateUserAccessTokenReq获取新的access_token使用
+    B->>A:若依旧是返回错误码,则应该强制要求重新登录
+    B->>A:新的access_token(1h的存活时间)
+
+```
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+路由路径:/PigChessTokenApi/UpdateUserAccessToken
+export interface UpdateUserAccessTokenReq{
+    id:HttpId;
+    UserName:string;
+}
+
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+export interface UpdateUserAccessTokenRes{
+    id:HttpId;
+    access_token:string;
     error:ErrorCode;
 }
   ```

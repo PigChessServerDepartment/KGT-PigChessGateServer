@@ -25,13 +25,14 @@ app.post('/PigChessTokenApi/UpdateUserAccessToken', (req: Request, res: Response
         access_token:"Bearer " + jwt.sign({ username: reqbody.UserName }, process.env.ACCESS_TOKEN_SECRET!, { expiresIn: '1h' }),
         error:Model.ErrorCode.Fali
     }
-    res.send(resbody);
+    res.send(JSON.stringify(resbody));
 });
 
 app.use((err:Error, req:Request, res:Response, next:NextFunction) => {
     if (err.name === 'UnauthorizedError') {
         console.error(err);
-        res.status(401).send('Invalid token');
+        const resbody:Model.RotueErrorRes={id:Model.HttpId.RotueError,error:Model.ErrorCode.UnauthorizedError}
+        res.status(401).send(JSON.stringify(resbody));
     } else {
         next(err);
     }

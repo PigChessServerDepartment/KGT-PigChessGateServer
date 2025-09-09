@@ -47,7 +47,7 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
     const resbody:Model.UserLoginRes=
     {id:Model.HttpId.UserLogin,error:Model.ErrorCode.Fali, access_token:"",refresh_token:"",userid:-1, iconurl:""};
     let defer:Defer=new Defer(()=>{
-        res.send(resbody);
+        res.send(JSON.stringify(resbody));
     })
 
     let redisresult=await RedisMgr.getInstance().GetRedis(RedisUserType.LoginCache+reqbody.UserName);
@@ -107,7 +107,7 @@ PigChessApiRoute.post('/PigChessApi/UserRegistered', async(req:Request, res:Resp
     const resbody:Model.UserRegisteredRes={id:Model.HttpId.UserRegistered, error:Model.ErrorCode.Fali};
 
     let defer:Defer=new Defer(()=>{
-        res.send(resbody);
+        res.send(JSON.stringify(resbody));
     })
 
     const redisresult= await RedisMgr.getInstance().GetRedis(RedisUserType.RegisteredVarifyCode+reqbody.Email)
@@ -141,7 +141,7 @@ PigChessApiRoute.post('/PigChessApi/UpdateUserPassword', async(req:Request, res:
     const resbody:Model.UpdateUserPasswordRes={id:Model.HttpId.UpdateUserPassword, error:Model.ErrorCode.Fali};
     
     let defer:Defer=new Defer(()=>{
-        res.send(resbody);
+        res.send(JSON.stringify(resbody));
     })
     
     const redisresult= await RedisMgr.getInstance().GetRedis(RedisUserType.UpdatePasswordVarifyCode+reqbody.p_email)
@@ -173,7 +173,7 @@ PigChessApiRoute.post('/PigChessApi/GetVarifyCode',async (req:Request, res:Respo
     const resbody:Model.VarifyCodeRes={id:Model.HttpId.VarifyCode, error:Model.ErrorCode.Fali};
 
     let defer:Defer=new Defer(()=>{
-        res.send(resbody);
+        res.send(JSON.stringify(resbody));
     })
     let code:string=generateRandomCode();
     switch(reqbody.Purpose){
