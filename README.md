@@ -21,6 +21,7 @@ export enum HttpId{
     InsertFriendApply=20001,
     UpdateFriendApplyStatus=20002,
     SearchFriendApplyTable=20003,
+    FindAreaPlayername=20004，
 }
 ```
 ## 接口Token限定
@@ -65,6 +66,7 @@ export enum VarifyPurpose{
 - [InsertFriendApply = 20001](#InsertFriendApply--20001)
 - [UpdateFriendApplyStatus = 20002](#UpdateFriendApplyStatus--20002)
 - [SearchFriendApplyTable = 20003](#SearchFriendApplyTable--20003)
+- [FindAreaPlayername = 20004](#FindAreaPlayername--20004)
 ---
 ### RotueError=400
 路由错误通用id,具体错误看错误码的枚举类型
@@ -490,6 +492,52 @@ export interface UpdateUserAccessTokenRes{
   ```
   </div>
 
+</div>
+
+---
+
+### FindAreaPlayername=20004
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  路由路径:/PigChessAdmin/FindAreaPlayername
+  查找区域玩家名，获取对应玩家数据
+  export interface FindAreaPlayernameReq{
+    id:HttpId;
+    playername:string;
+    area:number;//area=-1时表示查找全部区
+  }
+
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface FindAreaPlayernameRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+    playerlist:JSON[];
+  }
+
+  playerlist[x]={
+    id,
+    create_time,
+    userid,
+    area1playername,{解释：area [i] playname , 中间这个i对应的在哪个区，比如area1playername，i=1，就是在pigchessarea1这个区}
+    coin,
+    diamond,
+    pigcoin,
+    rankpoint,
+    exppoint,
+    s00，s01....拥有的角色等信息
+  }
+  ```
+  </div>
 </div>
 
 ---
