@@ -200,3 +200,39 @@ PigChessAdminRoute.post('/PigChessAdmin/SearchFriendApplyTable', async(req:Reque
         }
     }
 })
+
+PigChessAdminRoute.post('/PigChessAdmin/FindAreaPlayername', async(req:Request, res:Response) => {
+    const reqbody=req.body as Model.FindAreaPlayernameReq;
+    const resbody:Model.FindAreaPlayernameRes={
+        id:Model.HttpId.FindAreaPlayername,
+        error:Model.ErrorCode.Fali,
+        errordetail:"",
+        playerlist:[],
+    }
+    let defer:Defer=new Defer(()=>{
+        res.send(JSON.stringify(resbody));
+    })
+    
+    let sql="select find_area_playername($1,$2)";
+    let sqlres=await PgSqlMgr.getInstance().Query(sql,[
+        reqbody.playername,
+        reqbody.area
+    ]);
+    if(!sqlres || sqlres.rowCount===0){}
+    else
+    {
+        const result=JSON.parse(sqlres.rows[0].find_area_playername)as SqlModel.SqlAllRes
+        switch(result.errorcode)
+        {
+            case SqlModel.SqlErrorCode.Success:
+                resbody.error=Model.ErrorCode.Success;
+                resbody.playerlist=result.data;
+                break;
+            case SqlModel.SqlErrorCode.Fali:
+                console.error('SQL Error:', result.error);
+                resbody.error=Model.ErrorCode.Fali;
+                resbody.errordetail=result.error;
+                break;
+        }
+    }
+})

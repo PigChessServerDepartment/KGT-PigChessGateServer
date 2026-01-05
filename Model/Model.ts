@@ -18,6 +18,7 @@ export enum HttpId{
     InsertFriendApply=20001,
     UpdateFriendApplyStatus=20002,
     SearchFriendApplyTable=20003,
+    FindAreaPlayername=20004,
 }
 export enum VarifyPurpose{
     Registered=1,
@@ -178,4 +179,17 @@ export interface SearchFriendApplyTableRes{
     error:ErrorCode;
     errordetail:string;
     applylist:JSON[];
+}
+
+export interface FindAreaPlayernameReq{
+    id:HttpId;
+    playername:string;
+    area:number;
+}
+
+export interface FindAreaPlayernameRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+    playerlist:JSON[];
 }

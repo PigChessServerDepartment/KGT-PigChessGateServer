@@ -447,8 +447,15 @@ CREATE OR REPLACE FUNCTION search_friend_apply_table(
 RETURNS Json AS $$
 DECLARE
     res Json;
-    search_data Json;
+    search_data JSON;
 BEGIN
+    IF p_to_userid IS NULL OR p_to_playername IS NULL OR p_apply_to_area IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
     -- 使用 INTO 语句将查询结果存储到 search_data 中
     SELECT json_agg(row_to_json(t))
     INTO search_data
@@ -459,7 +466,100 @@ BEGIN
 
     -- 检查搜索结果是否为空
     IF search_data IS NULL THEN
-        search_data := '[]';  -- 返回空数组
+        search_data := '[]'::JSON;  -- 返回空数组
+    END IF;
+
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'search success',
+        'data', search_data
+    );
+
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERROR
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION find_area_playername(
+    p_playername VARCHAR(50) DEFAULT NULL,
+    p_area INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    search_data JSON[]:= ARRAY[]::JSON[];
+    tmp_search_data JSON;
+    table_names TEXT[];
+    table_data TEXT;
+    tablename TEXT;
+    columnname TEXT;
+    i INT;
+BEGIN
+    IF p_playername IS NULL OR p_area IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+
+    SELECT array_agg(tablename)
+    FROM pg_tables 
+    INTO table_names
+    WHERE schemaname = 'public' -- 或者其他 schema 名称
+    AND tablename LIKE 'pigchessarea%';
+
+    -- 遍历数组
+    IF p_area = -1 THEN
+        FOR i IN 1..array_length(table_names, 1) LOOP
+            tablename := table_names[i];
+            columnname := 'area' || i || 'playername';
+            EXECUTE format(
+                'SELECT json_agg(row_to_json(t))
+                 FROM %I t
+                 WHERE %I= $1',
+                tablename,columnname
+            ) 
+            INTO tmp_search_data 
+            USING p_playername;
+            IF tmp_search_data IS NOT NULL THEN
+                search_data := array_append(search_data, tmp_search_data);
+            END IF;
+        END LOOP;
+    ELSE
+        -- 如果指定了具体区域，只搜索对应表
+        tablename := 'pigchessarea' || p_area;
+        -- 检查表是否存在
+        IF EXISTS (
+            SELECT 1 FROM pg_tables 
+            WHERE tablename = tablename AND schemaname = 'public'
+        ) THEN
+            columnname := 'area' || p_area || 'playername';
+            EXECUTE format(
+                'SELECT json_agg(row_to_json(t)) 
+                 FROM %I t 
+                 WHERE %I = $1',  -- 假设列名就是 playername
+                tablename,columnname
+            ) 
+            INTO tmp_search_data
+            USING p_playername;
+            
+            IF tmp_search_data IS NOT NULL THEN
+                search_data := array_append(search_data, tmp_search_data);
+            END IF;
+        END IF;
+    END IF;
+
+    IF search_data IS NULL THEN
+        search_data := '[]'::JSON;  -- 返回空数组
     END IF;
 
     res := json_build_object(
