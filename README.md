@@ -7,7 +7,7 @@
 ```typescript
 与下面Res和Req对应
 export enum HttpId{
-    RotueError=400,
+    RouteError=400,
 
     UserLogin=10001,
     UserRegistered=10002,
@@ -54,7 +54,7 @@ export enum VarifyPurpose{
 
 ## 目录
 <!-- - [](#) -->
-- [RotueError = 400](#RotueError--400)
+- [RouteError = 400](#RouteError--400)
 - [UserLogin = 10001](#userlogin--10001)
 - [UserRegistered = 10002](#userregistered--10002)
 - [VarifyCode = 10003](#varifycode--10003)
@@ -63,19 +63,20 @@ export enum VarifyPurpose{
 - [UpdateUserPassword = 10006](#UpdateUserPassword--10006)
 - [UpdateUserAccessToken = 10007](#UpdateUserAccessToken--10007)
 
-- [InsertFriendApply = 20001](#InsertFriendApply--20001)
-- [UpdateFriendApplyStatus = 20002](#UpdateFriendApplyStatus--20002)
-- [SearchFriendApplyTable = 20003](#SearchFriendApplyTable--20003)
-- [FindAreaPlayername = 20004](#FindAreaPlayername--20004)
+- [好友功能全流程](#好友功能全流程)
+  - [InsertFriendApply = 20001](#InsertFriendApply--20001)
+  - [UpdateFriendApplyStatus = 20002](#UpdateFriendApplyStatus--20002)
+  - [SearchFriendApplyTable = 20003](#SearchFriendApplyTable--20003)
+  - [FindAreaPlayername = 20004](#FindAreaPlayername--20004)
 ---
-### RotueError=400
+### RouteError=400
 路由错误通用id,具体错误看错误码的枚举类型
 <div style="display:flex; gap:20px;">
 
   <div style="flex:1;">
 
   ```ts
-  export interface RotueErrorRes{
+  export interface RouteErrorRes{
     id:HttpId;
     error:ErrorCode
 }
@@ -338,7 +339,7 @@ sequenceDiagram
     participant A as 用户
     participant B as 系统
     A->>B:请求access_token限定的接口
-    B->>A:若返回id为RotueError(400),error为401错误码
+    B->>A:若返回id为RouteError(400),error为401错误码
     A->>B:应发送UpdateUserAccessTokenReq获取新的access_token使用
     B->>A:若依旧是返回错误码,则应该强制要求重新登录
     B->>A:新的access_token(1h的存活时间)
@@ -373,8 +374,31 @@ export interface UpdateUserAccessTokenRes{
 
 ---
 
-### InsertFriendApply=20001
+### 好友功能全流程
 
+#### 流程图
+```mermaid
+sequenceDiagram
+    participant A as 用户
+    participant B as 系统
+    A<<->>B :(使用流程)InsertFriendApply
+    A->>B :插入申请信息
+    B->>A :回复插入是否成功
+
+    A<<->>B :(使用流程)UpdateFriendApplyStatus
+    A->>B : 更新好友申请表中的选中申请条目的状态，newstatus=1表示同意，newstatus=2表示拒绝
+    B->>A : 返回成功与否的结果
+
+    A<<->>B :(使用流程)SearchFriendApplyTable
+    A->>B : 获取玩家自己的申请表项（谁想成为当前查询玩家的好友）
+    B->>A : 返回所有申请
+
+    A<<->>B : (使用流程)FindAreaPlayername
+    A->>B:获取对应area（area为-1时表示查询全部区，否则就为area的区）和playername的玩家的数据
+    B->>A:返回包含playerlist等数据（注：不同区的玩家可重名，同区玩家不可重名，所以会有同名但不同区被搜索出来）
+
+```
+#### InsertFriendApply=20001
 <div style="display:flex; gap:20px;">
 
   <div style="flex:1;">
@@ -410,7 +434,7 @@ export interface UpdateUserAccessTokenRes{
 
 ---
 
-### UpdateFriendApplyStatus=20002
+#### UpdateFriendApplyStatus=20002
 
 <div style="display:flex; gap:20px;">
 
@@ -428,7 +452,7 @@ export interface UpdateUserAccessTokenRes{
     from_playername:string;
     to_playername:string;
     new_status:number;
-    //0是未处理，处理时new_status设置为1表示已经处理，记录会保留3天后或者status设置为1后会在触发器中删除
+    //0是未处理，处理时new_status设置为1表示同意，2表示拒绝，记录会保留3天后或者status设置非0后会在触发器中删除
 }
 
   ```
@@ -449,7 +473,7 @@ export interface UpdateUserAccessTokenRes{
 
 ---
 
-### SearchFriendApplyTable=20003
+#### SearchFriendApplyTable=20003
 
 <div style="display:flex; gap:20px;">
 
@@ -496,7 +520,7 @@ export interface UpdateUserAccessTokenRes{
 
 ---
 
-### FindAreaPlayername=20004
+#### FindAreaPlayername=20004
 
 <div style="display:flex; gap:20px;">
 

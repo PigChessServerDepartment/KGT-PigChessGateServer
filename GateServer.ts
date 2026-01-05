@@ -31,7 +31,7 @@ app.post('/PigChessTokenApi/UpdateUserAccessToken', (req: Request, res: Response
 app.use((err:Error, req:Request, res:Response, next:NextFunction) => {
     if (err.name === 'UnauthorizedError') {
         console.error(err);
-        const resbody:Model.RotueErrorRes={id:Model.HttpId.RotueError,error:Model.ErrorCode.UnauthorizedError}
+        const resbody:Model.RouteErrorRes={id:Model.HttpId.RouteError,error:Model.ErrorCode.UnauthorizedError}
         res.status(401).send(JSON.stringify(resbody));
     } else {
         next(err);

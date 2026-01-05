@@ -4,7 +4,7 @@ export { GateServerErrorCode as ErrorCode } from "./ErrorCode";
 type ErrorCode=GateServerErrorCode;
 
 export enum HttpId{
-    RotueError=400,
+    RouteError=400,
 
     UserLogin=10001,
     UserRegistered=10002,
@@ -24,7 +24,7 @@ export enum VarifyPurpose{
     Registered=1,
     UpdatePassword=2,
 }
-export interface RotueErrorRes{
+export interface RouteErrorRes{
     id:HttpId;
     error:ErrorCode
 }
