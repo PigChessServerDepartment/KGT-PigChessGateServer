@@ -15,7 +15,12 @@ export enum HttpId{
     UpdateUserAreaData=10004,
     UpdateUserData=10005,
     UpdateUserPassword=10006,
-    UpdateUserAccessToken=10007
+    UpdateUserAccessToken=10007,
+
+
+    InsertFriendApply=20001,
+    UpdateFriendApplyStatus=20002,
+    SearchFriendApplyTable=20003,
 }
 ```
 ## 接口Token限定
@@ -47,6 +52,7 @@ export enum VarifyPurpose{
 # Http Req / Res 对照表 (左右两栏)
 
 ## 目录
+<!-- - [](#) -->
 - [RotueError = 400](#RotueError--400)
 - [UserLogin = 10001](#userlogin--10001)
 - [UserRegistered = 10002](#userregistered--10002)
@@ -55,6 +61,10 @@ export enum VarifyPurpose{
 - [UpdateUserData = 10005](#UpdateUserData--10005)
 - [UpdateUserPassword = 10006](#UpdateUserPassword--10006)
 - [UpdateUserAccessToken = 10007](#UpdateUserAccessToken--10007)
+
+- [InsertFriendApply = 20001](#InsertFriendApply--20001)
+- [UpdateFriendApplyStatus = 20002](#UpdateFriendApplyStatus--20002)
+- [SearchFriendApplyTable = 20003](#SearchFriendApplyTable--20003)
 ---
 ### RotueError=400
 路由错误通用id,具体错误看错误码的枚举类型
@@ -354,6 +364,129 @@ export interface UpdateUserAccessTokenRes{
     access_token:string;
     error:ErrorCode;
 }
+  ```
+  </div>
+
+</div>
+
+---
+
+### InsertFriendApply=20001
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  路由路径:/PigChessAdmin/InsertFriendApply
+  插入好友申请到好友申请表中
+  export interface InsertFriendApplyReq{
+    id:HttpId;
+    from_userid:number;
+    to_userid:number;
+    apply_from_area:string;
+    apply_to_area:string;
+    from_playername:string;
+    to_playername:string;
+}
+
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface InsertFriendApplyRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+}
+  ```
+  </div>
+
+</div>
+
+---
+
+### UpdateFriendApplyStatus=20002
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  路由路径:/PigChessAdmin/UpdateFriendApplyStatus
+  处理并更新好友申请表中的某一个请求,from是申请方，to是接受申请方
+  export interface UpdateFriendApplyStatusReq{
+    id:HttpId;
+    from_userid:number;
+    to_userid:number;
+    apply_from_area:string;
+    apply_to_area:string;
+    from_playername:string;
+    to_playername:string;
+    new_status:number;
+    //0是未处理，处理时new_status设置为1表示已经处理，记录会保留3天后或者status设置为1后会在触发器中删除
+}
+
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface UpdateFriendApplyStatusRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+  }
+  ```
+  </div>
+
+</div>
+
+---
+
+### SearchFriendApplyTable=20003
+
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  路由路径:/PigChessAdmin/SearchFriendApplyTable
+  查询玩家对应id，玩家名，对应服务器的好友申请
+  export interface SearchFriendApplyTableReq{
+    id:HttpId;
+    to_userid:number;
+    to_playername:string;
+    apply_to_area:string;
+  }
+
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface SearchFriendApplyTableRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+    applylist:JSON[];//返回的JSON数组
+  }
+  applylist[x]=Json
+  {
+    id,
+    create_time,
+    from_userid,
+    to_userid,
+    status,
+    from_playername,
+    to_playername,
+    apply_from_area,
+    apply_to_area
+  }
   ```
   </div>
 
