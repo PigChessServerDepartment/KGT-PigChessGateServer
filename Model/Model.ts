@@ -12,7 +12,12 @@ export enum HttpId{
     UpdateUserAreaData=10004,
     UpdateUserData=10005,
     UpdateUserPassword=10006,
-    UpdateUserAccessToken=10007
+    UpdateUserAccessToken=10007,
+
+
+    InsertFriendApply=20001,
+    UpdateFriendApplyStatus=20002,
+    SearchFriendApplyTable=20003,
 }
 export enum VarifyPurpose{
     Registered=1,
@@ -126,4 +131,51 @@ export interface UpdateUserAccessTokenRes{
     id:HttpId;
     access_token:string;
     error:ErrorCode;
+}
+
+export interface InsertFriendApplyReq{
+    id:HttpId;
+    from_userid:number;
+    to_userid:number;
+    apply_from_area:string;
+    apply_to_area:string;
+    from_playername:string;
+    to_playername:string;
+}
+
+export interface InsertFriendApplyRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+}
+
+export interface UpdateFriendApplyStatusReq{
+    id:HttpId;
+    from_userid:number;
+    to_userid:number;
+    apply_from_area:string;
+    apply_to_area:string;
+    from_playername:string;
+    to_playername:string;
+    new_status:number;
+}
+
+export interface UpdateFriendApplyStatusRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+}
+
+export interface SearchFriendApplyTableReq{
+    id:HttpId;
+    to_userid:number;
+    to_playername:string;
+    apply_to_area:string;
+}
+
+export interface SearchFriendApplyTableRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+    applylist:JSON[];
 }

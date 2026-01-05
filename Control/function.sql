@@ -83,7 +83,7 @@ BEGIN
     IF p_id IS NULL OR p_token IS NULL THEN
         res:= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
@@ -93,14 +93,14 @@ BEGIN
     WHERE id = p_id;
     res:= json_build_object(
         'errorcode', 1,
-        'errordetail', 'updatetoken success'
+        'error', 'updatetoken success'
     );
     RETURN res;
 EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'errordetail', SQLERROR
+            'error', SQLERROR
         );
         RETURN res;
 END
@@ -148,7 +148,7 @@ BEGIN
     IF p_id IS NULL OR p_username IS NULL OR p_password IS NULL OR p_new_email IS NULL THEN
         res:= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
@@ -180,14 +180,14 @@ BEGIN
 
     res:= json_build_object(
         'errorcode', 1,
-        'errordetail', 'update success'
+        'error', 'update success'
     );
     RETURN res;
 EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'errordetail', SQLERROR
+            'error', SQLERROR
         );
         RETURN res;
 END
@@ -205,7 +205,7 @@ BEGIN
     IF p_email IS NULL THEN
         res:= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
@@ -214,14 +214,14 @@ BEGIN
     WHERE email = p_email;
     res:= json_build_object(
         'errorcode', 1,
-        'errordetail', 'update success'
+        'error', 'update success'
     );
     RETURN res;
 EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'errordetail', SQLERROR
+            'error', SQLERROR
         );
         RETURN res;
 END
@@ -274,7 +274,7 @@ BEGIN
     IF  p_area_id IS NULL THEN
         res:= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
@@ -319,7 +319,7 @@ BEGIN
     IF p_from_userid IS NULL OR p_to_userid IS NULL OR p_apply_from_area IS NULL OR p_apply_to_area IS NULL OR p_from_playername IS NULL OR p_to_playername IS NULL THEN
         res= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
@@ -335,7 +335,7 @@ BEGIN
           AND status = 0;
         res= json_build_object(
             'errorcode', 1,
-            'errordetail', 'Application already exists'
+            'error', 'Application already exists'
         );
         RETURN res;
     END IF;
@@ -344,7 +344,7 @@ BEGIN
     VALUES (now(), p_from_userid, p_to_userid, p_apply_from_area, p_apply_to_area, p_from_playername, p_to_playername, 0);
     res= json_build_object(
         'errorcode', 1,
-        'errordetail', 'insert success'
+        'error', 'insert success'
     );
     RETURN res;
 EXCEPTION
@@ -352,7 +352,7 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'errordetail', SQLERROR
+            'error', SQLERROR
         );
         RETURN res;
 END;
@@ -361,6 +361,10 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION update_friend_apply_status(
     p_from_userid INTEGER DEFAULT NULL,
     p_to_userid INTEGER DEFAULT NULL,
+    p_apply_from_area VARCHAR(50) DEFAULT NULL,
+    p_apply_to_area VARCHAR(50) DEFAULT NULL,
+    p_from_playername VARCHAR(50) DEFAULT NULL,
+    p_to_playername VARCHAR(50) DEFAULT NULL,
     p_status INTEGER DEFAULT NULL
 )
 RETURNS Json AS $$
@@ -371,21 +375,22 @@ BEGIN
     IF p_from_userid IS NULL OR p_to_userid IS NULL OR p_status IS NULL THEN
         res= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
 
     UPDATE friend_apply_table
     SET status = p_status
-    WHERE from_userid = p_from_userid AND to_userid = p_to_userid
-    RETURNING * INTO updated_row;
-    PERFORM insert_friend(p_from_userid,p_to_userid,updated_row.apply_to_area,updated_row.to_playername);
-    PERFORM insert_friend(p_to_userid,p_from_userid,updated_row.apply_from_area,updated_row.from_playername);
+    WHERE from_userid = p_from_userid AND to_userid = p_to_userid AND from_playername = p_from_playername AND to_playername = p_to_playername;
+    -- RETURNING * INTO updated_row;
+    PERFORM insert_friend(p_from_userid,p_to_userid,p_apply_to_area,p_to_playername);
+    PERFORM insert_friend(p_to_userid,p_from_userid,p_apply_from_area,p_from_playername);
+
 
     res= json_build_object(
         'errorcode', 1,
-        'errordetail', 'update success'
+        'error', 'update success'
     );
     RETURN res;
 EXCEPTION
@@ -393,7 +398,7 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'errordetail', SQLERROR
+            'error', SQLERROR
         );
         RETURN res;
 END;
@@ -412,7 +417,7 @@ BEGIN
     IF p_userid IS NULL OR p_friend_userid IS NULL OR p_friend_in_whitch_area IS NULL OR p_friend_playername IS NUll THEN
         res= json_build_object(
             'errorcode', 0,
-            'errordetail', 'Missing required fields'
+            'error', 'Missing required fields'
         );
         RETURN res;
     END IF;
@@ -420,7 +425,7 @@ BEGIN
     VALUES (now(), p_userid, p_friend_userid, p_friend_in_whitch_area, p_friend_playername);
     res= json_build_object(
         'errorcode', 1,
-        'errordetail', 'insert success'
+        'error', 'insert success'
     );
     RETURN res;
 EXCEPTION
@@ -428,19 +433,59 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'errordetail', SQLERROR
+            'error', SQLERROR
         );
         RETURN res;
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION search_friend_apply_table(
+    p_to_userid INTEGER DEFAULT NULL,
+    p_to_playername VARCHAR(50) DEFAULT NULL,
+    p_apply_to_area VARCHAR(50) DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    search_data Json;
+BEGIN
+    -- 使用 INTO 语句将查询结果存储到 search_data 中
+    SELECT json_agg(row_to_json(t))
+    INTO search_data
+    FROM friend_apply_table t
+    WHERE to_userid = p_to_userid 
+      AND to_playername = p_to_playername 
+      AND apply_to_area = p_apply_to_area;
+
+    -- 检查搜索结果是否为空
+    IF search_data IS NULL THEN
+        search_data := '[]';  -- 返回空数组
+    END IF;
+
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'search success',
+        'data', search_data
+    );
+
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERROR
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION trigger_fun_Del_Which_TimeOut()
 RETURNS TRIGGER AS $body$
 BEGIN
-    -- 删除 create_time 早于当前时间 7 天的记录
+    -- 删除 create_time 早于当前时间 3 天的记录
     DELETE FROM friend_apply_table
-    WHERE create_time < NOW() - INTERVAL '7 days';
+    WHERE create_time < NOW() - INTERVAL '3 days' OR status = 1;
 
     -- 返回新插入或更新的行
     RETURN NEW;

@@ -33,6 +33,7 @@ export interface UpdateUserPasswordReq{
 }
 
 export interface SqlAllRes{
-    errorcode:number;
-    error:string;
+    errorcode:number;//error对应类型
+    error:string;//sql结果细节
+    data?:any;//返回数据
 }
