@@ -75,7 +75,7 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
         if(!sqlresult || sqlresult.rowCount===0){}
         else
         {
-            const userData = JSON.parse(sqlresult.rows[0])
+            const userData = JSON.parse(sqlresult.rows[0].find_user);
             if(userData.exits===1)
             {
                 // const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})

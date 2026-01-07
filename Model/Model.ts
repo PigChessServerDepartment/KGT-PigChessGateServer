@@ -19,6 +19,9 @@ export enum HttpId{
     UpdateFriendApplyStatus=20002,
     SearchFriendApplyTable=20003,
     FindAreaPlayername=20004,
+
+    AreaPlayerDataTraceBack=30001,
+    SelectAreaPlayerHistory=30002,
 }
 export enum VarifyPurpose{
     Registered=1,
@@ -192,4 +195,32 @@ export interface FindAreaPlayernameRes{
     error:ErrorCode;
     errordetail:string;
     playerlist:JSON[];
+}
+
+export interface AreaPlayerDataTraceBackReq{
+    id:HttpId;
+    playername:string;
+    area:number;
+    pre_hours:number;
+    userid:number;
+}
+
+export interface AreaPlayerDataTraceBackRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+}
+
+export interface SelectAreaPlayerHistoryReq{
+    id:HttpId;
+    playername:string;
+    area:number;
+    userid:number;
+}
+
+export interface SelectAreaPlayerHistoryRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+    historylist:JSON[];
 }

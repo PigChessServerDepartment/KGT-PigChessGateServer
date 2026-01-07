@@ -66,7 +66,7 @@ EXCEPTION
             'token_createtime', NULL,
             'exits',0,
             'errorcode',0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
 END;
 $$ LANGUAGE plpgsql;
@@ -100,7 +100,7 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END
@@ -187,7 +187,7 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END
@@ -221,7 +221,7 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END
@@ -298,7 +298,7 @@ EXCEPTION
     WHEN others THEN
         res:=json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END;
@@ -352,7 +352,7 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END;
@@ -380,12 +380,14 @@ BEGIN
         RETURN res;
     END IF;
 
+    IF p_status=1 THEN
+        PERFORM insert_friend(p_from_userid,p_to_userid,p_apply_to_area,p_to_playername);
+        PERFORM insert_friend(p_to_userid,p_from_userid,p_apply_from_area,p_from_playername);
+    END IF;
+
     UPDATE friend_apply_table
     SET status = p_status
     WHERE from_userid = p_from_userid AND to_userid = p_to_userid AND from_playername = p_from_playername AND to_playername = p_to_playername;
-    -- RETURNING * INTO updated_row;
-    PERFORM insert_friend(p_from_userid,p_to_userid,p_apply_to_area,p_to_playername);
-    PERFORM insert_friend(p_to_userid,p_from_userid,p_apply_from_area,p_from_playername);
 
 
     res= json_build_object(
@@ -398,7 +400,7 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END;
@@ -433,7 +435,7 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END;
@@ -481,7 +483,7 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END;
@@ -574,25 +576,206 @@ EXCEPTION
         -- 发生任何异常时返回0
         res= json_build_object(
             'errorcode', 0,
-            'error', SQLERROR
+            'error', SQLERRM
         );
         RETURN res;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION select_area_player_history(
+    p_playername VARCHAR(50) DEFAULT NULL,
+    p_area INTEGER DEFAULT NULL,
+    userid INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    search_data JSON;
+BEGIN
+    IF p_playername IS NULL OR p_area IS NULL OR userid IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    -- 使用 INTO 语句将查询结果存储到 search_data 中
+    SELECT json_agg(row_to_json(t))
+    INTO search_data
+    FROM area_player_history_table t
+    WHERE areaplayername = p_playername 
+      AND area = p_area
+      AND userid = userid;
+    -- 检查搜索结果是否为空
+    IF search_data IS NULL THEN
+        search_data := '[]'::JSON;  -- 返回空数组
+    END IF;
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'search success',
+        'data', search_data
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION area_player_data_trace_back(
+    p_playername VARCHAR(50) DEFAULT NULL,
+    p_area INTEGER DEFAULT NULL,
+    p_pre_hours INTEGER DEFAULT NULL,
+    userid INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    tablename TEXT;
+BEGIN
+    IF p_playername IS NULL OR p_area IS NULL OR p_pre_hours IS NULL OR userid IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    PERFORM set_config(
+        'pigchess.from_func',
+        'area_player_data_trace_back',
+        true        -- 只在当前事务有效
+    );
+
+    tablename := format('pigchessarea%s', p_area);
+    EXECUTE format
+    ($sql$
+        UPDATE %I parea
+        SET
+        coin      = aph.coin,
+        diamond   = aph.diamond,
+        pigcoin   = aph.pigcoin,
+        rankpoint = aph.rankpoint,
+        exppoint  = aph.exppoint,
+        s00       = aph.s00,
+        s01       = aph.s01
+        FROM (
+            SELECT *
+            FROM area_player_history_table
+            WHERE areaplayername = $1
+            AND area = $2
+            AND userid = $3
+            AND valid_to <= NOW() - INTERVAL '1 hour' * $4
+            ORDER BY valid_to DESC NULLS LAST LIMIT 1
+        ) AS aph
+        WHERE parea.area1playername = aph.areaplayername
+        AND parea.userid = aph.userid
+    $sql$, tablename)
+    USING p_playername, p_area, userid, p_pre_hours;
+
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'search success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION trigger_fun_Del_Which_TimeOut()
 RETURNS TRIGGER AS $body$
 BEGIN
     -- 删除 create_time 早于当前时间 3 天的记录
     DELETE FROM friend_apply_table
-    WHERE create_time < NOW() - INTERVAL '3 days' OR status = 1;
+    WHERE create_time < NOW() - INTERVAL '3 days' OR status != 0;
 
     -- 返回新插入或更新的行
     RETURN NEW;
 END;
 $body$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION track_area1_player_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        -- 新插入的记录
+        INSERT INTO area_player_history_table (
+            create_time,
+            areaplayername,
+            area,
+            coin,
+            diamond,
+            pigcoin,
+            rankpoint,
+            exppoint,
+            s00,
+            s01,
+            valid_from,
+            valid_to,
+            operation_type,
+            userid
+        ) VALUES (
+            NEW.create_time,
+            NEW.area1playername,
+            1,
+            NEW.coin,
+            NEW.diamond,
+            NEW.pigcoin,
+            NEW.rankpoint,
+            NEW.exppoint,
+            NEW.s00,
+            NEW.s01,
+            NOW(),
+            NULL,
+            'I',
+            NEW.userid
+        );
 
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- 首先关闭旧记录的有效期
+        UPDATE area_player_history_table 
+        SET valid_to = NOW() 
+        WHERE areaplayername = NEW.area1playername 
+          AND area = 1 
+          AND valid_to IS NULL;
+        IF current_setting('pigchess.from_func', true)= 'area_player_data_trace_back' THEN
+            -- 插入更新后的新记录
+            INSERT INTO area_player_history_table (create_time,areaplayername,area,coin,diamond,pigcoin,rankpoint,exppoint,s00,s01,valid_from,valid_to,operation_type,userid)
+            VALUES (NEW.create_time,NEW.area1playername,1,NEW.coin,NEW.diamond,NEW.pigcoin,NEW.rankpoint,NEW.exppoint,NEW.s00,NEW.s01,NOW(),NULL,'H',NEW.userid);
+        ELSE
+            -- 插入更新后的新记录
+            INSERT INTO area_player_history_table (create_time,areaplayername,area,coin,diamond,pigcoin,rankpoint,exppoint,s00,s01,valid_from,valid_to,operation_type,userid)
+            VALUES (NEW.create_time,NEW.area1playername,1,NEW.coin,NEW.diamond,NEW.pigcoin,NEW.rankpoint,NEW.exppoint,NEW.s00,NEW.s01,NOW(),NULL,'U',NEW.userid);
+        END IF;
+        
+    ELSIF TG_OP = 'DELETE' THEN
+        -- 关闭被删除记录的有效期
+        UPDATE area_player_history_table 
+        SET valid_to = NOW() 
+        WHERE areaplayername = OLD.area1playername 
+          AND area = 1 
+          AND valid_to IS NULL;
+        
+        -- 记录删除操作
+        INSERT INTO area_player_history_table (create_time,areaplayername,area,coin,diamond,pigcoin,rankpoint,exppoint,s00,s01,valid_from,valid_to,operation_type,userid)
+         VALUES (OLD.create_time,OLD.area1playername,1,OLD.coin,OLD.diamond,OLD.pigcoin,OLD.rankpoint,OLD.exppoint,OLD.s00,OLD.s01,NOW(),NOW(),'D',OLD.userid);
+
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 
 

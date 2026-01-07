@@ -31,8 +31,8 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateUserAreaData', async(req:Request, 
     if(!sqlres || sqlres.rowCount===0){}
     else
     {
-        const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
-        // const result=JSON.parse(sqlres.rows[0].update_pigchessarea_data)as SqlModel.SqlAllRes
+        // const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
+        const result=JSON.parse(sqlres.rows[0].update_pigchessarea_data)as SqlModel.SqlAllRes
         switch(result.errorcode)
         {
             case SqlModel.SqlErrorCode.Success:
@@ -69,8 +69,8 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateUserData', async(req:Request, res:
     if(!sqlres || sqlres.rowCount===0){}
     else
     {
-        // const result=JSON.parse(sqlres.rows[0].update_user_data)as SqlModel.SqlAllRes
-        const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
+        const result=JSON.parse(sqlres.rows[0].update_user_data)as SqlModel.SqlAllRes
+        // const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
         switch(result.errorcode)
         {
             case SqlModel.SqlErrorCode.Success:
@@ -107,8 +107,8 @@ PigChessAdminRoute.post('/PigChessAdmin/InsertFriendApply', async(req:Request, r
     if(!sqlres || sqlres.rowCount===0){}
     else
     {
-        // const result=JSON.parse(sqlres.rows[0].insert_friend_apply)as SqlModel.SqlAllRes
-        const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
+        const result=JSON.parse(sqlres.rows[0].insert_friend_apply)as SqlModel.SqlAllRes
+        // const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
         switch(result.errorcode)
         {
             case SqlModel.SqlErrorCode.Success:
@@ -147,8 +147,8 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateFriendApplyStatus', async(req:Requ
     if(!sqlres || sqlres.rowCount===0){}
     else
     {
-        // const result=JSON.parse(sqlres.rows[0].update_friend_apply_status)as SqlModel.SqlAllRes
-        const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
+        const result=JSON.parse(sqlres.rows[0].update_friend_apply_status)as SqlModel.SqlAllRes
+        // const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
         switch(result.errorcode)
         {
             case SqlModel.SqlErrorCode.Success:
@@ -184,8 +184,8 @@ PigChessAdminRoute.post('/PigChessAdmin/SearchFriendApplyTable', async(req:Reque
     if(!sqlres || sqlres.rowCount===0){}
     else
     {
-        // const result=JSON.parse(sqlres.rows[0].search_friend_apply_table)as SqlModel.SqlAllRes
-        const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
+        const result=JSON.parse(sqlres.rows[0].search_friend_apply_table)as SqlModel.SqlAllRes
+        // const result=JSON.parse(sqlres.rows[0])as SqlModel.SqlAllRes
         switch(result.errorcode)
         {
             case SqlModel.SqlErrorCode.Success:
@@ -236,3 +236,74 @@ PigChessAdminRoute.post('/PigChessAdmin/FindAreaPlayername', async(req:Request, 
         }
     }
 })
+
+PigChessAdminRoute.post('/PigChessAdmin/AreaPlayerDataTraceBack', async(req:Request, res:Response) => {
+    const reqbody=req.body as Model.AreaPlayerDataTraceBackReq;
+    const resbody:Model.AreaPlayerDataTraceBackRes={
+        id:Model.HttpId.AreaPlayerDataTraceBack,
+        error:Model.ErrorCode.Fali,
+        errordetail:"",
+    }
+    let defer:Defer=new Defer(()=>{
+        res.send(JSON.stringify(resbody));
+    })
+    let sql="select area_player_data_traceback($1,$2,$3,$4)";
+    let sqlres=await PgSqlMgr.getInstance().Query(sql,[
+        reqbody.playername,
+        reqbody.area,
+        reqbody.pre_hours,
+        reqbody.userid
+    ]);
+    if(!sqlres || sqlres.rowCount===0){}
+    else
+    {
+        const result=JSON.parse(sqlres.rows[0].area_player_data_traceback)as SqlModel.SqlAllRes
+        switch(result.errorcode)
+        {
+            case SqlModel.SqlErrorCode.Success:
+                resbody.error=Model.ErrorCode.Success;
+                break;
+            case SqlModel.SqlErrorCode.Fali:
+                console.error('SQL Error:', result.error);
+                resbody.error=Model.ErrorCode.Fali;
+                resbody.errordetail=result.error;
+                break;
+        }
+    }
+})
+
+PigChessAdminRoute.post('/PigChessAdmin/SelectAreaPlayerHistory', async(req:Request, res:Response) => {
+    const reqbody=req.body as Model.SelectAreaPlayerHistoryReq;
+    const resbody:Model.SelectAreaPlayerHistoryRes={
+        id:Model.HttpId.SelectAreaPlayerHistory,
+        error:Model.ErrorCode.Fali,
+        errordetail:"",
+        historylist:[],
+    }
+    let defer:Defer=new Defer(()=>{
+        res.send(JSON.stringify(resbody));
+    })
+    let sql="select select_area_player_history($1,$2,$3)";
+    let sqlres=await PgSqlMgr.getInstance().Query(sql,[
+        reqbody.playername,
+        reqbody.area,
+        reqbody.userid
+    ]);
+    if(!sqlres || sqlres.rowCount===0){}
+    else
+    {
+        const result=JSON.parse(sqlres.rows[0].select_area_player_history)as SqlModel.SqlAllRes
+        switch(result.errorcode)
+        {
+            case SqlModel.SqlErrorCode.Success:
+                resbody.error=Model.ErrorCode.Success;
+                resbody.historylist=result.data;
+                break;
+            case SqlModel.SqlErrorCode.Fali:
+                console.error('SQL Error:', result.error);
+                resbody.error=Model.ErrorCode.Fali;
+                resbody.errordetail=result.error;
+                break;
+        }
+    }
+});
