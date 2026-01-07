@@ -574,6 +574,19 @@ sequenceDiagram
 
 ### 历史表功能全流程
 #### 流程图
+```mermaid
+sequenceDiagram
+    participant A as 用户
+    participant B as 系统
+    participant C as pgsql
+    A->>B:AreaPlayerDataTraceBackReq<br/>(id，用户名称，所在区，回溯多少小时，用户ID)
+    B->>C:area_player_data_traceback（）
+    B->>A:AreaPlayerDataTraceBackRes()
+    A->>B:SelectAreaPlayerHistoryReq<br/>(id，用户名称，所在区,用户ID)
+    B->>C:select_area_player_history()
+    B->>A:SelectAreaPlayerHistoryRes()
+    C->>C:ClearTask()每天凌晨删除前14天历史数据<br/>track_areax_player_changes() pgsql触发器
+```
 #### AreaPlayerDataTraceBack=30001
 <div style="display:flex; gap:20px;">
 
