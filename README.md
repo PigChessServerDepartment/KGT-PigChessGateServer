@@ -404,6 +404,7 @@ sequenceDiagram
     B->>A:返回包含playerlist等数据（注：不同区的玩家可重名，同区玩家不可重名，所以会有同名但不同区被搜索出来）
 
 ```
+---
 #### InsertFriendApply=20001
 <div style="display:flex; gap:20px;">
 
@@ -587,6 +588,8 @@ sequenceDiagram
     B->>A:SelectAreaPlayerHistoryRes()
     C->>C:ClearTask()每天凌晨删除前14天历史数据<br/>track_areax_player_changes() pgsql触发器
 ```
+
+---
 #### AreaPlayerDataTraceBack=30001
 <div style="display:flex; gap:20px;">
 
