@@ -7,6 +7,7 @@ import { PigChessAdminRoute } from './Route/PigChessAdminRote';
 import * as Model from "./Model/Model";
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { ClearTask } from './Schedule/CleanPlayerHistory';
 dotenv.config();
 // const secretkey='PigChess'
 const app = express();
@@ -45,6 +46,12 @@ function main(){
     server.listen(port, () => {
         console.log(`Server is running at http://localhost:${port}`);
     });
-}
 
+    ClearTask();
+    // 优雅关闭
+    process.on('SIGINT', async () => {
+        console.log('正在关闭服务...');
+        process.exit(0);
+    });
+}  
 main();

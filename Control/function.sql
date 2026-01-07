@@ -693,6 +693,29 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION clear_area_player_history_table()
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    DELETE FROM area_player_history_table
+    WHERE valid_to IS NOT NULL
+      AND valid_to < NOW() - INTERVAL '14 days';
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'clear success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION trigger_fun_Del_Which_TimeOut()
 RETURNS TRIGGER AS $body$
@@ -776,6 +799,3 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-
-

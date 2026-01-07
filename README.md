@@ -21,7 +21,10 @@ export enum HttpId{
     InsertFriendApply=20001,
     UpdateFriendApplyStatus=20002,
     SearchFriendApplyTable=20003,
-    FindAreaPlayername=20004，
+    FindAreaPlayername=20004,
+
+    AreaPlayerDataTraceBack=30001,
+    SelectAreaPlayerHistory=30002,
 }
 ```
 ## 接口Token限定
@@ -68,6 +71,9 @@ export enum VarifyPurpose{
   - [UpdateFriendApplyStatus = 20002](#UpdateFriendApplyStatus--20002)
   - [SearchFriendApplyTable = 20003](#SearchFriendApplyTable--20003)
   - [FindAreaPlayername = 20004](#FindAreaPlayername--20004)
+- [历史表功能全流程](#历史表功能全流程)
+  - [AreaPlayerDataTraceBack = 30001](#AreaPlayerDataTraceBack--30001)
+  - [SelectAreaPlayerHistory = 30002](#SelectAreaPlayerHistory--30002)
 ---
 ### RouteError=400
 路由错误通用id,具体错误看错误码的枚举类型
@@ -559,6 +565,89 @@ sequenceDiagram
     rankpoint,
     exppoint,
     s00，s01....拥有的角色等信息
+  }
+  ```
+  </div>
+</div>
+
+---
+
+### 历史表功能全流程
+#### 流程图
+#### AreaPlayerDataTraceBack=30001
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  路由路径:/PigChessAdmin/AreaPlayerDataTraceBack
+  回溯到前pre_hours*1h时间的数据
+  export interface AreaPlayerDataTraceBackReq{
+    id:HttpId;
+    playername:string;
+    area:number;
+    pre_hours:number;
+    userid:number;
+  }
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface AreaPlayerDataTraceBackRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+  }
+  ```
+  </div>
+</div>
+
+---
+
+#### SelectAreaPlayerHistory=30002
+<div style="display:flex; gap:20px;">
+
+  <div style="flex:1;">
+
+  ```ts
+  路由路径:/PigChessAdmin/SelectAreaPlayerHistory
+  查看对应区的对应玩家的历史数据（各个更新数据时间段的数据记录）
+  export interface SelectAreaPlayerHistoryReq{
+    id:HttpId;
+    playername:string;
+    area:number;
+    userid:number;
+}
+  ```
+  </div>
+
+  <div style="flex:1;">
+
+  ```ts
+  export interface SelectAreaPlayerHistoryRes{
+    id:HttpId;
+    error:ErrorCode;
+    errordetail:string;
+    historylist:JSON[];
+  }
+  historylist[x]={
+    history_id,
+    create_time,
+    areaplayername,
+    area,
+    coin,
+    diamond,
+    pigcoin,
+    rankpoint,
+    exppoint,
+    s00,
+    s01,
+    valid_from,
+    valid_to,
+    operation,(I for 插入, U or 更新, D for 删除,H for 回退)
+    userid
   }
   ```
   </div>
