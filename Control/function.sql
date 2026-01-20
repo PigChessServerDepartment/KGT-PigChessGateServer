@@ -717,6 +717,370 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION update_area_player_email(
+    p_email_id BIGINT DEFAULT NULL,
+    p_status INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    IF p_email_id IS NULL OR p_status IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    UPDATE area_player_email_table
+    SET status = p_status
+    WHERE email_id = p_email_id;
+    res= json_build_object(
+        'errorcode', 1,
+        'error', 'update success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res; 
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION search_area_player_email(
+    p_to_userid INTEGER DEFAULT NULL,
+    p_to_playername VARCHAR(100) DEFAULT NULL,
+    p_to_area INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    search_data JSON;
+BEGIN
+    IF p_to_userid IS NULL OR p_to_playername IS NULL OR p_to_area IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    -- 使用 INTO 语句将查询结果存储到 search_data 中
+    SELECT json_agg(row_to_json(t))
+    INTO search_data
+    FROM area_player_email_table t
+    WHERE to_userid = p_to_userid
+        AND to_playername = p_to_playername
+        AND to_area = p_to_area;
+    -- 检查搜索结果是否为空
+    IF search_data IS NULL THEN
+        search_data := '[]'::JSON;  -- 返回空数组
+    END IF;
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'search success',
+        'data', search_data
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION insert_area_player_email(
+    p_keep_days INTEGER DEFAULT NULL,
+    p_from_userid INTEGER DEFAULT NULL,
+    p_to_userid INTEGER DEFAULT NULL,
+    p_from_playername VARCHAR(100) DEFAULT NULL,
+    p_to_playername VARCHAR(100) DEFAULT NULL,
+    p_from_area INTEGER DEFAULT NULL,
+    p_to_area INTEGER DEFAULT NULL,
+    p_email_content TEXT DEFAULT NULL,
+    p_type INTEGER DEFAULT NULL,
+    p_stuff_json JSON DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    IF p_keep_days IS NULL OR p_from_userid IS NULL OR p_to_userid IS NULL OR p_from_playername IS NULL OR p_to_playername IS NULL OR p_from_area IS NULL OR p_to_area IS NULL OR p_email_content IS NULL OR p_type IS NULL OR p_stuff_json IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    INSERT INTO area_player_email_table (create_time, keep_days, from_userid, to_userid, from_playername, to_playername, from_area, to_area, email_content, type, status, stuff_json)
+    VALUES (now(), p_keep_days, p_from_userid, p_to_userid, p_from_playername, p_to_playername, p_from_area, p_to_area, p_email_content, p_type, 0, p_stuff_json);
+    res= json_build_object(
+        'errorcode', 1,
+        'error', 'insert success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION search_system_email(
+    p_to_area INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    search_data JSON;
+BEGIN
+    IF p_to_area IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    -- 使用 INTO 语句将查询结果存储到 search_data 中
+    SELECT json_agg(row_to_json(t))
+    INTO search_data
+    FROM system_email_table t
+    WHERE to_area = p_to_area;
+    -- 检查搜索结果是否为空
+    IF search_data IS NULL THEN
+        search_data := '[]'::JSON;  -- 返回空数组
+    END IF;
+    res := json_build_object(
+        'errorcode', 1,
+        'error', 'search success',
+        'data', search_data
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0  
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 创建通用的数组按位或函数
+CREATE OR REPLACE FUNCTION array_bitwise_or(
+    arr1 BIGINT[],
+    arr2 BIGINT[]
+)
+RETURNS BIGINT[] AS $$
+DECLARE
+    result BIGINT[] := '{}';
+    len INT;
+    i INT;
+BEGIN
+    -- 处理NULL情况
+    IF arr1 IS NULL THEN
+        RETURN arr2;
+    END IF;
+    IF arr2 IS NULL THEN
+        RETURN arr1;
+    END IF;
+    
+    -- 检查长度
+    IF array_length(arr1, 1) != array_length(arr2, 1) THEN
+        RAISE EXCEPTION 'Array lengths do not match: % vs %', 
+            array_length(arr1, 1), array_length(arr2, 1);
+    END IF;
+    
+    len := array_length(arr1, 1);
+    
+    FOR i IN 1..len LOOP
+        result := array_append(result, arr1[i] | arr2[i]);
+    END LOOP;
+    
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION update_system_email_bitmap_sendcount(
+    p_email_id BIGINT DEFAULT NULL,
+    p_user_id BIGINT DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    res JSON;
+    v_bitmap_index INT;
+    v_bit_offset INT;
+    v_mask BIGINT;
+    v_already_claimed BOOLEAN;
+BEGIN
+    -- 参数检查
+    IF p_email_id IS NULL OR p_user_id IS NULL THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+    END IF;
+    
+    -- 计算位置
+    v_bitmap_index := (p_user_id / 64);  -- 数组索引（从1开始）
+    v_bit_offset := p_user_id % 64;          -- 位偏移（0-63）
+    v_mask := 1::BIGINT << v_bit_offset;     -- 位掩码
+    
+    -- 检查是否已领取，并锁定行
+    SELECT (COALESCE(bitmap[v_bitmap_index], 0) & v_mask) != 0
+    INTO v_already_claimed
+    FROM system_email_table
+    WHERE email_id = p_email_id
+    FOR UPDATE;
+    
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', '邮件不存在'
+        );
+    END IF;
+    
+    IF v_already_claimed IS NULL OR v_already_claimed THEN
+        -- 已领取（位为1）或无法确定
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', '用户已领取或无法处理'
+        );
+    END IF;
+    
+    -- 更新位图为1（已领取）
+    UPDATE system_email_table
+    SET 
+        send_count = send_count + 1,
+        bitmap[v_bitmap_index] = COALESCE(bitmap[v_bitmap_index], 0) | v_mask
+    WHERE email_id = p_email_id;
+    
+    -- 返回成功
+    RETURN json_build_object(
+        'errorcode', 1,
+        'error', 'update success',
+        'user_id', p_user_id,
+        'bitmap_index', v_bitmap_index,
+        'bit_offset', v_bit_offset
+    );
+    
+EXCEPTION
+    WHEN others THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION system_email_bitmap_sync(
+    p_email_id BIGINT DEFAULT NULL,
+    p_send_count INTEGER DEFAULT NULL,
+    p_bitmap BIGINT[] DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    IF p_email_id IS NULL OR p_send_count IS NULL OR p_bitmap IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+        -- 单条SQL完成更新（需要PostgreSQL 9.5+）
+    WITH current_data AS (
+        SELECT email_id, bitmap
+        FROM system_email_table
+        WHERE email_id = p_email_id
+        FOR UPDATE
+    )
+    UPDATE system_email_table s
+    SET send_count = p_send_count,
+        bitmap = array_bitwise_or(s.bitmap, p_bitmap)
+    FROM current_data c
+    WHERE s.email_id = c.email_id;
+    
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', 'Email not found'
+        );
+    END IF;
+    
+    RETURN json_build_object(
+        'errorcode', 1,
+        'error', 'Update success'
+    );
+    
+EXCEPTION
+    WHEN others THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+CREATE OR REPLACE FUNCTION insert_system_email(
+    p_keep_days INTEGER DEFAULT NULL,
+    p_to_area INTEGER DEFAULT NULL,
+    p_email_content TEXT DEFAULT NULL,
+    p_all_count INTEGER DEFAULT NULL,
+    p_stuff_json JSON DEFAULT NULL,
+    p_type INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    v_email_id BIGINT;  -- 用于存储返回的自增ID
+    res Json;
+BEGIN
+    IF p_keep_days IS NULL OR p_to_area IS NULL OR p_email_content IS NULL OR p_all_count IS NULL OR p_stuff_json IS NULL OR p_type IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    INSERT INTO system_email_table 
+    (create_time, keep_days, to_area, email_content, 
+    all_count, send_count, stuff_json, type)
+    VALUES 
+    (now(), p_keep_days, p_to_area, p_email_content,
+     p_all_count, 0, p_stuff_json, p_type)
+    RETURNING email_id INTO v_email_id;
+    res= json_build_object(
+        'errorcode', 1,
+        'error', 'insert success',
+        'data', v_email_id
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION trigger_fun_Del_Which_TimeOut()
 RETURNS TRIGGER AS $body$
 BEGIN

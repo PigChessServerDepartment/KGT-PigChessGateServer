@@ -3,7 +3,7 @@ import express, { NextFunction, Request, Response } from "express";
 import bodyParser from 'body-parser';
 import { expressjwt } from "express-jwt";
 import { PigChessApiRoute } from './Route/PigChessApiRoute';
-import { PigChessAdminRoute } from './Route/PigChessAdminRote';
+import { PigChessAdminRoute } from './Route/PigChessAdminRoute';
 import * as Model from "./Model/Model";
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';

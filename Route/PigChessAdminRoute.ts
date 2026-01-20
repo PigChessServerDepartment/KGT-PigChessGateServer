@@ -2,8 +2,9 @@ import { Router,Request, Response } from "express";
 import { PgSqlMgr } from "../Control/PgSqlMgr";
 import * as Model from "../Model/Model";
 import { RedisMgr } from "../Control/RedisMgr";
-import { Defer, RedisUserType } from "../const";
+import { Defer, RedisSystemType, RedisUserType } from "../const";
 import * as SqlModel from "../Model/SqlModel";
+import { create } from "ts-node";
 
 export const PigChessAdminRoute=Router()
 
@@ -237,7 +238,7 @@ PigChessAdminRoute.post('/PigChessAdmin/FindAreaPlayername', async(req:Request, 
     }
 })
 
-PigChessAdminRoute.post('/PigChessAdmin/AreaPlayerDataTraceBack', async(req:Request, res:Response) => {
+PigChessAdminRoute.post('/PigChessAdmin/System/AreaPlayerDataTraceBack', async(req:Request, res:Response) => {
     const reqbody=req.body as Model.AreaPlayerDataTraceBackReq;
     const resbody:Model.AreaPlayerDataTraceBackRes={
         id:Model.HttpId.AreaPlayerDataTraceBack,
@@ -272,7 +273,7 @@ PigChessAdminRoute.post('/PigChessAdmin/AreaPlayerDataTraceBack', async(req:Requ
     }
 })
 
-PigChessAdminRoute.post('/PigChessAdmin/SelectAreaPlayerHistory', async(req:Request, res:Response) => {
+PigChessAdminRoute.post('/PigChessAdmin/System/SelectAreaPlayerHistory', async(req:Request, res:Response) => {
     const reqbody=req.body as Model.SelectAreaPlayerHistoryReq;
     const resbody:Model.SelectAreaPlayerHistoryRes={
         id:Model.HttpId.SelectAreaPlayerHistory,
@@ -305,5 +306,74 @@ PigChessAdminRoute.post('/PigChessAdmin/SelectAreaPlayerHistory', async(req:Requ
                 resbody.errordetail=result.error;
                 break;
         }
+    }
+});
+// ================================================
+// 自动添加 - 2026-01-20 20:08:06
+// ================================================
+PigChessAdminRoute.post('/PigChessAdmin/System/InsertSystemEmail', async(req:Request, res:Response) => {
+        const reqbody=req.body as Model.InsertSystemEmailReq;
+        const resbody:Model.InsertSystemEmailRes={
+            id:Model.HttpId.InsertSystemEmail,
+            error:Model.ErrorCode.Fali,
+            email_id:-1,
+        }
+        let defer:Defer=new Defer(()=>{
+            res.send(JSON.stringify(resbody));
+        })
+    let sql="select insert_system_email($1,$2,$3,$4,$5,$6)";
+    let sqlres=await PgSqlMgr.getInstance().Query(sql,[
+        reqbody.keep_days,
+        reqbody.to_area,
+        reqbody.email_content,
+        reqbody.all_count,
+        reqbody.stuff_json,
+        reqbody.type
+    ]);
+    let email_id:number=0;
+    if(!sqlres || sqlres.rowCount===0){}
+    else
+    {
+        const result=JSON.parse(sqlres.rows[0].insert_system_email)as SqlModel.SqlAllRes
+        switch(result.errorcode)
+        {
+            case SqlModel.SqlErrorCode.Success:
+                resbody.error=Model.ErrorCode.Success;
+                resbody.email_id=email_id;
+                email_id=result.data;
+                break;
+            case SqlModel.SqlErrorCode.Fali:
+                console.error('SQL Error:', result.error);
+                resbody.error=Model.ErrorCode.Fali;
+                break;
+        }
+    }
+
+    await RedisMgr.getInstance().SetRedisExpire(RedisSystemType.SystemEmailId+email_id,JSON.stringify({
+        email_id:email_id,
+        create_time:new Date(new Date().getTime() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').split('.')[0],
+        keep_days:reqbody.keep_days,
+        to_area:reqbody.to_area,
+        email_content:reqbody.email_content,
+        all_count:reqbody.all_count,
+        send_count:0,
+        status:0,
+        bitmap:Array(10000).fill(BigInt(0)),
+        stuff_json:reqbody.stuff_json,
+        type:reqbody.type
+    }),reqbody.keep_days*24*60*60);
+
+    let old_emailidlist:any|null=await RedisMgr.getInstance().GetRedis(RedisSystemType.SystemEmailIdList);
+    if(old_emailidlist)
+    {
+        let emailidlist:number[]=JSON.parse(old_emailidlist);
+        emailidlist.push(email_id);
+        await RedisMgr.getInstance().SetRedis(RedisSystemType.SystemEmailIdList,JSON.stringify(emailidlist));
+    }
+    else
+    {
+        let emailidlist:number[]=[];
+        emailidlist.push(email_id);
+        await RedisMgr.getInstance().SetRedis(RedisSystemType.SystemEmailIdList,JSON.stringify(emailidlist));
     }
 });

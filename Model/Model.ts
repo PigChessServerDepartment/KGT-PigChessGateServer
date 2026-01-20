@@ -22,6 +22,7 @@ export enum HttpId{
 
     AreaPlayerDataTraceBack=30001,
     SelectAreaPlayerHistory=30002,
+    InsertSystemEmail=30003,
 }
 export enum VarifyPurpose{
     Registered=1,
@@ -223,4 +224,21 @@ export interface SelectAreaPlayerHistoryRes{
     error:ErrorCode;
     errordetail:string;
     historylist:JSON[];
+}
+// ================================================
+// 自动添加 - 2026-01-20 05:22:00
+// ================================================
+export interface InsertSystemEmailReq {
+    id:HttpId;
+    keep_days:number;
+    to_area:number;
+    email_content:string;
+    all_count:number;
+    stuff_json:JSON;
+    type:number;
+}
+export interface InsertSystemEmailRes {
+    id:HttpId;
+    error:ErrorCode;
+    email_id:number;
 }

@@ -38,3 +38,8 @@ export enum RedisUserType{
     UpdatePasswordVarifyCode="UpdatePassword_VarifyCode_",
     UserInfo="UserInfo_",
 }
+
+export enum RedisSystemType{
+    SystemEmailId="SystemEmailId_",
+    SystemEmailIdList="SystemEmailIdList_"
+}
