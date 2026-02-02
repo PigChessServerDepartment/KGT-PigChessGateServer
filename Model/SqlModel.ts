@@ -1,6 +1,7 @@
 export enum SqlErrorCode{
     Fali=0,
     Success=1,
+    EmailAlreadyExist=2
 }
 
 export interface UpdateUserAreaDataReq{

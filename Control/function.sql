@@ -957,7 +957,7 @@ BEGIN
     IF v_already_claimed IS NULL OR v_already_claimed THEN
         -- 已领取（位为1）或无法确定
         RETURN json_build_object(
-            'errorcode', 0,
+            'errorcode', 2,
             'error', '用户已领取或无法处理'
         );
     END IF;
@@ -1120,6 +1120,14 @@ BEGIN
             'error', 'Missing required fields'
         );
     END IF;
+    
+    update_bitmap_res = update_system_email_bitmap_sendcount(
+        p_email_id,
+        p_userid);
+    IF update_bitmap_res->>'errorcode' != '1' THEN
+        RETURN update_bitmap_res;
+    END IF;
+
     update_userdata_res = update_area_player_email(
         p_area,p_userid,
         p_coin,p_diamond,p_pigcoin,
@@ -1129,12 +1137,6 @@ BEGIN
         RETURN update_userdata_res;
     END IF;
 
-    update_bitmap_res = update_system_email_bitmap_sendcount(
-        p_email_id,
-        p_userid);
-    IF update_bitmap_res->>'errorcode' = '0' THEN
-        RETURN update_bitmap_res;
-    END IF;
 
     RETURN json_build_object(
         'errorcode', 1,
@@ -1218,6 +1220,14 @@ BEGIN
             'error', 'Missing required fields'
         );
     END IF;
+
+    update_email_res = update_area_player_email_status(
+        p_email_id,
+        1);
+    IF update_email_res->>'errorcode' != '1' THEN
+        RETURN update_email_res;
+    END IF;
+
     update_userdata_res = update_area_player_email(
         p_area,p_userid,
         p_coin,p_diamond,p_pigcoin,
@@ -1225,12 +1235,6 @@ BEGIN
         p_s00,p_s01);
     IF update_userdata_res->>'errorcode' = '0' THEN
         RETURN update_userdata_res;
-    END IF;
-    update_email_res = update_area_player_email_status(
-        p_email_id,
-        1);
-    IF update_email_res->>'errorcode' = '0' THEN
-        RETURN update_email_res;
     END IF;
     RETURN json_build_object(
         'errorcode', 1,
@@ -1252,6 +1256,7 @@ CREATE OR REPLACE FUNCTION update_area_player_email_status(
 RETURNS Json AS $$
 DECLARE
     res Json;
+    v_status INTEGER;
 BEGIN
     IF p_email_id IS NULL OR p_status IS NULL THEN
         res= json_build_object(
@@ -1260,6 +1265,26 @@ BEGIN
         );
         RETURN res;
     END IF;
+
+    SELECT status FROM area_player_email_table
+    WHERE email_id = p_email_id
+    INTO v_status;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'errorcode', 2,
+            'error', '邮件不存在'
+        );
+    END IF;
+
+    IF v_status = p_status THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', '邮件已经领取过'
+        );
+        RETURN res;
+    END IF;
+
     UPDATE area_player_email_table
     SET status = p_status
     WHERE email_id = p_email_id;

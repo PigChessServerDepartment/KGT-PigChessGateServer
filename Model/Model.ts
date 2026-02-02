@@ -273,7 +273,7 @@ export interface GetSystemEmailRes {
 }
 export interface ResEmail{
     emailjson:JSON;
-    is_receive_stuff:number;
+    is_receive_stuff:number|null;
 }
 // ================================================
 // 自动添加 - 2026-01-28 09:39:35
