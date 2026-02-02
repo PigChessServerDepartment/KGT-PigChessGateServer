@@ -924,6 +924,8 @@ DECLARE
     v_bit_offset INT;
     v_mask BIGINT;
     v_already_claimed BOOLEAN;
+    v_type INTEGER;
+    v_stuff_json JSON;
 BEGIN
     -- 参数检查
     IF p_email_id IS NULL OR p_user_id IS NULL THEN
@@ -934,7 +936,7 @@ BEGIN
     END IF;
     
     -- 计算位置
-    v_bitmap_index := (p_user_id / 64);  -- 数组索引（从1开始）
+    v_bitmap_index := (p_user_id / 64);  -- 数组索引（从0开始）
     v_bit_offset := p_user_id % 64;          -- 位偏移（0-63）
     v_mask := 1::BIGINT << v_bit_offset;     -- 位掩码
     
@@ -965,17 +967,75 @@ BEGIN
     SET 
         send_count = send_count + 1,
         bitmap[v_bitmap_index] = COALESCE(bitmap[v_bitmap_index], 0) | v_mask
-    WHERE email_id = p_email_id;
+    WHERE email_id = p_email_id
+    RETURNING type, stuff_json INTO v_type, v_stuff_json;
     
     -- 返回成功
     RETURN json_build_object(
         'errorcode', 1,
         'error', 'update success',
-        'user_id', p_user_id,
-        'bitmap_index', v_bitmap_index,
-        'bit_offset', v_bit_offset
+        'data',json_build_object(
+            'type', v_type,
+            'stuff_json', v_stuff_json
+            )
     );
     
+EXCEPTION
+    WHEN others THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION check_system_email_stuff_is_receive(
+    p_email_id BIGINT DEFAULT NULL,
+    p_user_id BIGINT DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    res JSON;
+    v_bitmap_index INT;
+    v_bit_offset INT;
+    v_mask BIGINT;
+    v_already_claimed INT;
+BEGIN
+    -- 参数检查
+    IF p_email_id IS NULL OR p_user_id IS NULL THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+    END IF;
+    -- 计算位置
+    v_bitmap_index := (p_user_id / 64);  -- 数组索引（从0开始）
+    v_bit_offset := p_user_id % 64;          -- 位偏移（0-63）
+    v_mask := 1::BIGINT << v_bit_offset;     -- 位掩码
+    -- 检查是否已领取
+    SELECT (COALESCE(bitmap[v_bitmap_index], 0) & v_mask)
+    INTO v_already_claimed
+    FROM system_email_table
+    WHERE email_id = p_email_id;
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', '邮件不存在'
+        );
+    END IF;
+
+    IF v_already_claimed IS NULL THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', '邮件位图数据异常'
+        );
+    END IF;
+
+    RETURN json_build_object(
+        'errorcode', 1,
+        'error', 'check success',
+        'data', v_already_claimed
+    );
 EXCEPTION
     WHEN others THEN
         RETURN json_build_object(
@@ -1036,6 +1096,59 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION receive_system_email_stuff(
+    p_email_id BIGINT DEFAULT NULL,
+    p_area INTEGER DEFAULT NULL,
+    p_userid BIGINT DEFAULT NULL,
+    p_coin INTEGER DEFAULT NULL,
+    p_diamond INTEGER DEFAULT NULL,
+    p_pigcoin INTEGER DEFAULT NULL,
+    p_rankpoint INTEGER DEFAULT NULL,
+    p_exppoint INTEGER DEFAULT NULL,
+    p_s00 INTEGER DEFAULT NULL,
+    p_s01 INTEGER DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    res JSON;
+    update_userdata_res JSON;
+    update_bitmap_res JSON;
+BEGIN
+    IF p_email_id IS NULL OR p_area IS NULL OR p_stuff_json IS NULL OR p_userid IS NULL OR p_playername IS NULL THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+    END IF;
+    update_userdata_res = update_area_player_email(
+        p_area,p_userid,
+        p_coin,p_diamond,p_pigcoin,
+        p_rankpoint,p_exppoint,
+        p_s00,p_s01);
+    IF update_userdata_res->>'errorcode' = '0' THEN
+        RETURN update_userdata_res;
+    END IF;
+
+    update_bitmap_res = update_system_email_bitmap_sendcount(
+        p_email_id,
+        p_userid);
+    IF update_bitmap_res->>'errorcode' = '0' THEN
+        RETURN update_bitmap_res;
+    END IF;
+
+    RETURN json_build_object(
+        'errorcode', 1,
+        'error', 'Function created successfully'
+    );
+EXCEPTION
+    WHEN others THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+END;
+$$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION insert_system_email(
     p_keep_days INTEGER DEFAULT NULL,
@@ -1063,6 +1176,225 @@ BEGIN
     VALUES 
     (now(), p_keep_days, p_to_area, p_email_content,
      p_all_count, 0, p_stuff_json, p_type)
+    RETURNING email_id INTO v_email_id;
+    res= json_build_object(
+        'errorcode', 1,
+        'error', 'insert success',
+        'data', v_email_id
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION receive_area_player_email_stuff(
+    p_email_id BIGINT DEFAULT NULL,
+    p_area INTEGER DEFAULT NULL,
+    p_userid BIGINT DEFAULT NULL,
+    p_coin INTEGER DEFAULT NULL,
+    p_diamond INTEGER DEFAULT NULL,
+    p_pigcoin INTEGER DEFAULT NULL,
+    p_rankpoint INTEGER DEFAULT NULL,
+    p_exppoint INTEGER DEFAULT NULL,
+    p_s00 INTEGER DEFAULT NULL,
+    p_s01 INTEGER DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    res JSON;
+    update_userdata_res JSON;
+    update_email_res JSON;
+BEGIN
+    IF p_email_id IS NULL OR p_area IS NULL OR p_userid IS NULL OR p_playername IS NULL THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+    END IF;
+    update_userdata_res = update_area_player_email(
+        p_area,p_userid,
+        p_coin,p_diamond,p_pigcoin,
+        p_rankpoint,p_exppoint,
+        p_s00,p_s01);
+    IF update_userdata_res->>'errorcode' = '0' THEN
+        RETURN update_userdata_res;
+    END IF;
+    update_email_res = update_area_player_email_status(
+        p_email_id,
+        1);
+    IF update_email_res->>'errorcode' = '0' THEN
+        RETURN update_email_res;
+    END IF;
+    RETURN json_build_object(
+        'errorcode', 1,
+        'error', 'Function created successfully'
+    );
+EXCEPTION
+    WHEN others THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_area_player_email_status(
+    p_email_id BIGINT DEFAULT NULL,
+    p_status INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+BEGIN
+    IF p_email_id IS NULL OR p_status IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    UPDATE area_player_email_table
+    SET status = p_status
+    WHERE email_id = p_email_id;
+    res= json_build_object(
+        'errorcode', 1,
+        'error', 'update success'
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION check_area_player_email_stuff_is_receive(
+    p_email_id BIGINT DEFAULT NULL
+)
+RETURNS JSON AS $$
+DECLARE
+    res JSON;    
+        v_status INTEGER;
+BEGIN
+    IF p_email_id IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    -- 检查是否已领取
+    SELECT status
+    INTO v_status
+    FROM area_player_email_table
+    WHERE email_id = p_email_id;
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', '邮件不存在'
+        );
+    END IF;
+    RETURN json_build_object(
+        'errorcode', 1,
+        'error', 'check success',
+        'data', v_status
+    );
+EXCEPTION
+    WHEN others THEN
+        RETURN json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_area_player_email(
+    p_userid INTEGER DEFAULT NULL,
+    p_area INTEGER DEFAULT NULL,
+    p_limit_from INTEGER DEFAULT NULL,
+    p_limit INTEGER DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    search_data JSON;
+BEGIN
+    IF p_userid IS NULL OR p_area IS NULL OR p_limit_from IS NULL OR p_limit_to IS NULL THEN
+        res= json_build_object(
+            'errorcode', 0,
+            'error', 'Missing required fields'
+        );
+        RETURN res;
+    END IF;
+    -- 使用 INTO 语句将查询结果存储到 search_data 中
+    SELECT json_agg(row_to_json(t))
+    INTO search_data
+    FROM (
+        SELECT *
+        FROM area_player_email_table
+        WHERE to_userid = p_userid
+          AND to_area = p_area
+        ORDER BY create_time DESC
+        LIMIT p_limit OFFSET p_limit_from
+    ) t;
+    -- 检查搜索结果是否为空
+    IF search_data IS NULL THEN
+        search_data := '[]'::JSON;  -- 返回空数组
+    END IF;
+    res= json_build_object(
+        'errorcode', 1,
+        'error', 'Function created successfully',
+        'data', search_data
+    );
+    RETURN res;
+EXCEPTION
+    WHEN others THEN   
+        -- 发生任何异常时返回0
+        res= json_build_object(
+            'errorcode', 0,
+            'error', SQLERRM
+        );
+        RETURN res;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION insert_area_player_email(
+    keep_days INTEGER DEFAULT NULL,
+    from_userid INTEGER DEFAULT NULL,
+    to_userid INTEGER DEFAULT NULL,
+    from_playername VARCHAR(100) DEFAULT NULL,
+    to_playername VARCHAR(100) DEFAULT NULL,
+    from_area INTEGER DEFAULT NULL,
+    to_area INTEGER DEFAULT NULL,
+    email_content TEXT DEFAULT NULL,
+    status INTEGER DEFAULT NULL,
+    type INTEGER DEFAULT NULL,
+    stuff_json JSON DEFAULT NULL
+)
+RETURNS Json AS $$
+DECLARE
+    res Json;
+    v_email_id BIGINT;  -- 用于存储返回的自增ID
+BEGIN
+    INSERT INTO area_player_email_table 
+    (create_time, keep_days, from_userid, to_userid, 
+    from_playername, to_playername, from_area, to_area, 
+    email_content, status, type, stuff_json)
+    VALUES 
+    (now(), keep_days, from_userid, to_userid,
+     from_playername, to_playername, from_area, to_area,
+     email_content, status, type, stuff_json)
     RETURNING email_id INTO v_email_id;
     res= json_build_object(
         'errorcode', 1,
