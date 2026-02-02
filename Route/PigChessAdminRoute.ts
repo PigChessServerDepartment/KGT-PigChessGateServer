@@ -23,6 +23,12 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateUserAreaData', async (req: JWTRequ
     let defer: Defer = new Defer(() => {
         res.send(JSON.stringify(resbody));
     })
+    let auth=constfunction.CheckReqAuthValid(req.auth);
+    if(!auth){
+        resbody.error=Model.ErrorCode.UnauthorizedError;
+        return;
+    }
+    reqbody.p_user_id=auth.userid;
     let sqlres = await sqlfunction.UpdateUserAreaData(reqbody);
     if (!sqlres || sqlres.rowCount === 0) { }
     else {
@@ -49,9 +55,14 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateUserData', async (req: JWTRequest,
     let defer: Defer = new Defer(() => {
         res.send(JSON.stringify(resbody));
     })
+    let auth=constfunction.CheckReqAuthValid(req.auth);
+    if(!auth){
+        resbody.error=Model.ErrorCode.UnauthorizedError;
+        return;
+    }
     let sql = "select update_user_data($1,$2,$3,$4,$5,$6,$7,$8)";
     let sqlres = await PgSqlMgr.getInstance().Query(sql, [
-        reqbody.p_id,
+        auth.userid,
         reqbody.p_username,
         reqbody.p_password,
         reqbody.p_new_username,
@@ -87,9 +98,17 @@ PigChessAdminRoute.post('/PigChessAdmin/InsertFriendApply', async (req: JWTReque
     let defer: Defer = new Defer(() => {
         res.send(JSON.stringify(resbody));
     })
+
+    let auth=constfunction.CheckReqAuthValid(req.auth);
+    if(!auth){
+        resbody.error=Model.ErrorCode.UnauthorizedError;
+        return;
+    }
+
     let sql = "select insert_friend_apply($1,$2,$3,$4,$5,$6)";
     let sqlres = await PgSqlMgr.getInstance().Query(sql, [
-        reqbody.from_userid,
+        // reqbody.from_userid,
+        auth.userid,
         reqbody.to_userid,
         reqbody.apply_from_area,
         reqbody.apply_to_area,
@@ -124,9 +143,16 @@ PigChessAdminRoute.post('/PigChessAdmin/UpdateFriendApplyStatus', async (req: JW
         res.send(JSON.stringify(resbody));
     })
 
+    let auth=constfunction.CheckReqAuthValid(req.auth);
+    if(!auth){
+        resbody.error=Model.ErrorCode.UnauthorizedError;
+        return;
+    }
+
     let sql = "select update_friend_apply_status($1,$2,$3,$4,$5,$6,$7)";
     let sqlres = await PgSqlMgr.getInstance().Query(sql, [
-        reqbody.from_userid,
+        // reqbody.from_userid,
+        auth.userid,
         reqbody.to_userid,
         reqbody.apply_from_area,
         reqbody.apply_to_area,
@@ -163,9 +189,16 @@ PigChessAdminRoute.post('/PigChessAdmin/SearchFriendApplyTable', async (req: JWT
         res.send(JSON.stringify(resbody));
     })
 
+    let auth=constfunction.CheckReqAuthValid(req.auth);
+    if(!auth){
+        resbody.error=Model.ErrorCode.UnauthorizedError;
+        return;
+    }
+
     let sql = "select search_friend_apply_table($1,$2,$3)";
     let sqlres = await PgSqlMgr.getInstance().Query(sql, [
-        reqbody.to_userid,
+        // reqbody.to_userid,
+        auth.userid,
         reqbody.to_playername,
         reqbody.apply_to_area
     ]);
@@ -411,7 +444,35 @@ PigChessAdminRoute.post('/PigChessAdmin/GetSystemEmail', async (req: JWTRequest,
             let is_receive: number | null = await RedisMgr.getInstance().GetBitmapBitSafe(
                 RedisSystemType.SystemEmailId + emailid + RedisSystemType.SystemEmailArea + reqbody.area + RedisSystemType.SystemEmailBitmap,
                 64000, auth.userid);
-            if (is_receive === null) is_receive = 0;
+            // if (is_receive === null) is_receive = 0;
+            if(is_receive!=1||is_receive===null)
+            {
+                //降级查数据库然后更新redis
+                is_receive=0;
+                let sql="select check_system_email_stuff_is_receive($1,$2)";
+                let sqlres=await PgSqlMgr.getInstance().Query(sql,[
+                    emailid,
+                    auth.userid
+                ]);
+                if(!sqlres||sqlres.rowCount===0){}
+                else
+                {
+                    const result=JSON.parse(sqlres.rows[0].check_system_email_stuff_is_receive) as SqlModel.SqlAllRes
+                    switch(result.errorcode)
+                    {
+                        case SqlModel.SqlErrorCode.Success:
+                            is_receive=result.data as number;
+                            await RedisMgr.getInstance().SetBitmapBitSafe(
+                                RedisSystemType.SystemEmailId + emailid + RedisSystemType.SystemEmailArea + reqbody.area + RedisSystemType.SystemEmailBitmap,
+                                64000, auth.userid, 1
+                            );
+                            break;
+                        case SqlModel.SqlErrorCode.Fali:
+                            console.error('SQL Error:', result.error);
+                            break;
+                    }
+                }
+            }
             let resemail: Model.ResEmail = {
                 emailjson: emailjson,
                 is_receive_stuff: is_receive
@@ -484,7 +545,7 @@ PigChessAdminRoute.post('/PigChessAdmin/ReceiveSystemEmailStuff', async (req: JW
                     // );
                     await RedisMgr.getInstance().SetBitmapBitSafe(
                         RedisSystemType.SystemEmailId + reqbody.emailid + RedisSystemType.SystemEmailArea + reqbody.area + RedisSystemType.SystemEmailBitmap,
-                        64000, reqbody.userid, 1
+                        64000, auth.userid, 1
                     );
                     break;
                 case SqlModel.SqlErrorCode.Fali:
@@ -614,10 +675,42 @@ PigChessAdminRoute.post('/PigChessAdmin/GetAreaPlayerEmail', async (req: JWTRequ
 
         if (emailjsonstr) {
 
-            let emailjson: JSON = JSON.parse(emailjsonstr) as JSON;
+            let emailjson = JSON.parse(emailjsonstr);
             let is_receive = 0;
             if ('status' in emailjson) {
                 is_receive = ((emailjson as any).status);
+            }
+            if(is_receive!==1)
+            {
+                //降级查数据库然后更新redis
+                is_receive=0;
+                let sql="select check_area_player_email_stuff_is_receive($1)";
+                let sqlres=await PgSqlMgr.getInstance().Query(sql,[
+                    emailid,
+                ]);
+                if(!sqlres||sqlres.rowCount===0){}
+                else
+                {
+                    const result=JSON.parse(sqlres.rows[0].check_area_player_email_stuff_is_receive) as SqlModel.SqlAllRes
+                    switch(result.errorcode)
+                    {
+                        case SqlModel.SqlErrorCode.Success:
+                            is_receive=result.data as number;
+                            if(is_receive===1)
+                            {
+                                //更新redis
+                                emailjson.status=1;
+                                await RedisMgr.getInstance().SetRedis(
+                                    RedisUserType.UserEmailId + emailid + RedisUserType.UserEmailArea + reqbody.area,
+                                    JSON.stringify(emailjson)
+                                );
+                            }
+                            break;
+                        case SqlModel.SqlErrorCode.Fali:
+                            console.error('SQL Error:', result.error);
+                            break;
+                    }
+                }
             }
             let resemail: Model.ResEmail = {
                 emailjson: emailjson,
