@@ -37,9 +37,14 @@ export enum RedisUserType{
     RegisteredVarifyCode="Registered_VarifyCode_",
     UpdatePasswordVarifyCode="UpdatePassword_VarifyCode_",
     UserInfo="UserInfo_",
+    UserEmailId="UserEmail_",
+    UserEmailArea="UserEmailArea_",
+    UserEmailIdList="UserEmailIdList_"
 }
 
 export enum RedisSystemType{
     SystemEmailId="SystemEmailId_",
-    SystemEmailIdList="SystemEmailIdList_"
+    SystemEmailIdList="SystemEmailIdList_",
+    SystemEmailArea="SystemEmailArea_",
+    SystemEmailBitmap="SystemEmailBitmap_"
 }

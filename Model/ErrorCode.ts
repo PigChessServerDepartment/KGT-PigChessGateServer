@@ -65,5 +65,6 @@ export enum GateServerErrorCode{
     Fali=0,
     Success=1,
     VarifyCodeErr=2,
+    StuffAlreadyReceived=3,
     UnauthorizedError=401,
 }

@@ -3,6 +3,16 @@ import { GateServerErrorCode } from "./ErrorCode";
 export { GateServerErrorCode as ErrorCode } from "./ErrorCode";
 type ErrorCode=GateServerErrorCode;
 
+export interface stuff{
+    coin: number;
+    diamond: number;
+    pigcoin: number;
+    rankpoint: number;
+    exppoint: number;
+    S00: number;
+    S01: number;
+}
+
 export enum HttpId{
     RouteError=400,
 
@@ -23,6 +33,12 @@ export enum HttpId{
     AreaPlayerDataTraceBack=30001,
     SelectAreaPlayerHistory=30002,
     InsertSystemEmail=30003,
+    UpdateSystemEmailBitmapSendcount=30004,
+    GetSystemEmail=30005,
+    ReceiveSystemEmailStuff=30006,
+    InsertAreaPlayerEmail=30007,
+    GetAreaPlayerEmail=30008,
+    ReceiveAreaPlayerEmailStuff=30009,
 }
 export enum VarifyPurpose{
     Registered=1,
@@ -241,4 +257,83 @@ export interface InsertSystemEmailRes {
     id:HttpId;
     error:ErrorCode;
     email_id:number;
+}
+// ================================================
+// 自动添加 - 2026-01-28 08:13:54
+// ================================================
+export interface GetSystemEmailReq {
+    id:HttpId;
+    area:number;
+    userid:number;
+}
+export interface GetSystemEmailRes {
+    id:HttpId;
+    error:ErrorCode;
+    email:ResEmail[];
+}
+export interface ResEmail{
+    emailjson:JSON;
+    is_receive_stuff:number;
+}
+// ================================================
+// 自动添加 - 2026-01-28 09:39:35
+// ================================================
+export interface ReceiveSystemEmailStuffReq {
+    id:HttpId;
+    emailid:number;
+    userid:number;
+    area:number;
+}
+export interface ReceiveSystemEmailStuffRes {
+    id:HttpId;
+    error:ErrorCode;
+}
+// ================================================
+// 自动添加 - 2026-01-28 15:22:16
+// ================================================
+export interface InsertAreaPlayerEmailReq {
+    id:HttpId;
+    keep_days:number;
+    from_userid:number;
+    to_userid:number;
+    from_playername:string;
+    to_playername:string;
+    from_area:number;
+    to_area:number;
+    email_content:string;
+    status:number;
+    type:number;
+    stuff_json:JSON;
+}
+export interface InsertAreaPlayerEmailRes {
+    id:HttpId;
+    error:ErrorCode;
+}
+// ================================================
+// 自动添加 - 2026-01-28 16:34:20
+// ================================================
+export interface GetAreaPlayerEmailReq {
+    id:HttpId;
+    userid:number;
+    area:number;
+    limit_from:number;
+    limit:number;
+}
+export interface GetAreaPlayerEmailRes {
+    id:HttpId;
+    error:ErrorCode;
+    email:ResEmail[];
+}
+// ================================================
+// 自动添加 - 2026-01-28 16:42:58
+// ================================================
+export interface ReceiveAreaPlayerEmailStuffReq {
+    id:HttpId;
+    emailid:number;
+    userid:number;
+    area:number;
+}
+export interface ReceiveAreaPlayerEmailStuffRes {
+    id:HttpId;
+    error:ErrorCode;
 }

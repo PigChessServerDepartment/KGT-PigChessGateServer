@@ -6,94 +6,91 @@ dotenv.config();
 class RedisPool {
     private connections: Redis[] = []; // 存储连接池中的连接
     private waitingQueue: Array<(conn: Redis) => void> = []; // 等待队列
-  
+
     constructor(private redisConnectMsg: RedisConnectIni) {
-      // 初始化连接池
-      for (let i = 0; i < redisConnectMsg.ConnectNum; i++) {
-        const conn = new Redis({
-          host: redisConnectMsg.RedisHost,
-          port: parseInt(redisConnectMsg.RedisPort),
-          password: redisConnectMsg.RedisPwd,
-        });
-  
-        // 监听连接错误
-        conn.on('error', (err: any) => {
-          console.error('Redis connection error:', err);
-        });
-  
-        this.connections.push(conn);
-      }
+        // 初始化连接池
+        for (let i = 0; i < redisConnectMsg.ConnectNum; i++) {
+            const conn = new Redis({
+                host: redisConnectMsg.RedisHost,
+                port: parseInt(redisConnectMsg.RedisPort),
+                password: redisConnectMsg.RedisPwd,
+            });
+
+            // 监听连接错误
+            conn.on('error', (err: any) => {
+                console.error('Redis connection error:', err);
+            });
+
+            this.connections.push(conn);
+        }
     }
-  
+
     /**
      * 获取一个 Redis 连接
      * @returns Promise<Redis>
      */
     public getConnection(): Promise<Redis> {
-      return new Promise((resolve) => {
-        if (this.connections.length > 0) {
-          // 如果池中有可用连接，直接返回
-          resolve(this.connections.pop()!);
-        } else {
-          // 如果池中没有可用连接，将请求加入等待队列
-          this.waitingQueue.push(resolve);
-        }
-      });
+        return new Promise((resolve) => {
+            if (this.connections.length > 0) {
+                // 如果池中有可用连接，直接返回
+                resolve(this.connections.pop()!);
+            } else {
+                // 如果池中没有可用连接，将请求加入等待队列
+                this.waitingQueue.push(resolve);
+            }
+        });
     }
-  
+
     /**
      * 释放一个 Redis 连接
      * @param conn Redis 连接
      */
     public releaseConnection(conn: Redis): void {
-      if (this.waitingQueue.length > 0) {
-        // 如果有等待的请求，直接将连接分配给等待的请求
-        const waitingResolve = this.waitingQueue.shift()!;
-        waitingResolve(conn);
-      } else {
-        // 如果没有等待的请求，将连接放回池中
-        this.connections.push(conn);
-      }
+        if (this.waitingQueue.length > 0) {
+            // 如果有等待的请求，直接将连接分配给等待的请求
+            const waitingResolve = this.waitingQueue.shift()!;
+            waitingResolve(conn);
+        } else {
+            // 如果没有等待的请求，将连接放回池中
+            this.connections.push(conn);
+        }
     }
-  
+
     /**
      * 关闭连接池
      */
     public async close(): Promise<void> {
-      // 关闭所有连接
-      await Promise.all(this.connections.map((conn) => conn.quit()));
-      this.connections = [];
-      this.waitingQueue = [];
-      console.log('Redis pool closed.');
+        // 关闭所有连接
+        await Promise.all(this.connections.map((conn) => conn.quit()));
+        this.connections = [];
+        this.waitingQueue = [];
+        console.log('Redis pool closed.');
     }
-  }
-  
+}
 
-export class RedisMgr
-{
 
-    private con_redis_pool:RedisPool;
+export class RedisMgr {
 
-    constructor()
-    {
-        
-        this.con_redis_pool=new RedisPool({   
+    private con_redis_pool: RedisPool;
+
+    constructor() {
+
+        this.con_redis_pool = new RedisPool({
             RedisPwd: process.env.Redis_Password || "123456",
-            RedisPort:process.env.Redis_Port||"6380",
-            RedisHost:process.env.Redis_Host||"127.0.0.1",
-            ConnectNum:3
+            RedisPort: process.env.Redis_Port || "6380",
+            RedisHost: process.env.Redis_Host || "127.0.0.1",
+            ConnectNum: 3
         });
     }
     private static instance: RedisMgr | null = null;
-    static getInstance(): RedisMgr
-    {
+    static getInstance(): RedisMgr {
         if (!RedisMgr.instance) RedisMgr.instance = new RedisMgr();
         return RedisMgr.instance;
     }
 
     async SetRedis(key: any, value: any) {
         const conn = await this.con_redis_pool.getConnection();
-        let defer:Defer=new Defer(()=>{
+        let defer: Defer = new Defer(() => {
             this.con_redis_pool.releaseConnection(conn);
             console.log("redis connection release")
         })
@@ -103,14 +100,14 @@ export class RedisMgr
         } catch (error: any) {
             console.log('Set redis error is', error)
             return false
-        }finally {
+        } finally {
             defer.dispose(); // 确保无论如何都会释放连接
         }
     }
 
     async GetRedis(key: any) {
         const conn = await this.con_redis_pool.getConnection();
-        let defer:Defer=new Defer(()=>{
+        let defer: Defer = new Defer(() => {
             this.con_redis_pool.releaseConnection(conn);
             console.log("Get redis connection release")
         })
@@ -126,14 +123,14 @@ export class RedisMgr
         catch (error: any) {
             console.log('get redis error is ', error)
             return null
-        }finally {
+        } finally {
             defer.dispose(); // 确保无论如何都会释放连接
         }
     }
 
     async DelRedis(key: any) {
         const conn = await this.con_redis_pool.getConnection();
-        let defer:Defer=new Defer(()=>{
+        let defer: Defer = new Defer(() => {
             this.con_redis_pool.releaseConnection(conn);
             console.log("Del redis connection release")
         })
@@ -143,14 +140,14 @@ export class RedisMgr
         } catch (error: any) {
             console.log('Del redis error is', error)
             return false
-        }finally {
+        } finally {
             defer.dispose(); // 确保无论如何都会释放连接
         }
     }
-    
+
     async QueryRedis(key: any) {
         const conn = await this.con_redis_pool.getConnection();
-        let defer:Defer=new Defer(()=>{
+        let defer: Defer = new Defer(() => {
             this.con_redis_pool.releaseConnection(conn);
         })
         try {
@@ -165,14 +162,14 @@ export class RedisMgr
         } catch (error: any) {
             console.log('QueryRedis error is', error);
             return null
-        }finally {
+        } finally {
             defer.dispose(); // 确保无论如何都会释放连接
         }
     }
-    
+
     async SetRedisExpire(key: any, value: any, exptime: any) {
         const conn = await this.con_redis_pool.getConnection();
-        let defer:Defer=new Defer(()=>{
+        let defer: Defer = new Defer(() => {
             this.con_redis_pool.releaseConnection(conn);
         })
         try {
@@ -184,14 +181,14 @@ export class RedisMgr
         } catch (error: any) {
             console.log('SetRedisExpire error is', error);
             return false;
-        }finally {
+        } finally {
             defer.dispose(); // 确保无论如何都会释放连接
         }
     }
 
     async HSetRedis(hashname: any, field: any, value: any) {
         const conn = await this.con_redis_pool.getConnection();
-        let defer:Defer=new Defer(()=>{
+        let defer: Defer = new Defer(() => {
             this.con_redis_pool.releaseConnection(conn);
         })
         try {
@@ -200,9 +197,80 @@ export class RedisMgr
         } catch (error: any) {
             console.log('HSetRedis error is', error)
             return false
-        }finally {
+        } finally {
             defer.dispose(); // 确保无论如何都会释放连接
         }
     }
 
+    async InitBitmap(key: string, size: number): Promise<boolean> {
+        if (!Number.isInteger(size) || size <= 0) {
+            throw new Error('bitmap size must be positive integer');
+        }
+
+        const conn = await this.con_redis_pool.getConnection();
+        const defer = new Defer(() => {
+            this.con_redis_pool.releaseConnection(conn);
+        });
+
+        try {
+            // 预热最高位，强制 bitmap 扩容到指定大小
+            await conn.setbit(key, size - 1, 0);
+            return true;
+        } catch (error: any) {
+            console.error('InitBitmap error:', error);
+            return false;
+        } finally {
+            defer.dispose();
+        }
+    }
+
+    async SetBitmapBitSafe(
+        key: string,
+        size: number,
+        offset: number,
+        value: 0 | 1
+    ): Promise<boolean> {
+
+        if (offset < 0 || offset >= size) {
+            throw new Error(`bitmap offset ${offset} overflow (size=${size})`);
+        }
+
+        const conn = await this.con_redis_pool.getConnection();
+        const defer = new Defer(() => {
+            this.con_redis_pool.releaseConnection(conn);
+        });
+
+        try {
+            await conn.setbit(key, offset, value);
+            return true;
+        } finally {
+            defer.dispose();
+        }
+    }
+
+    async GetBitmapBitSafe(
+        key: string,
+        size: number,
+        offset: number
+    ): Promise<0 | 1 | null> {
+
+        if (offset < 0 || offset >= size) {
+            throw new Error(`bitmap offset ${offset} overflow (size=${size})`);
+        }
+
+        const conn = await this.con_redis_pool.getConnection();
+        const defer = new Defer(() => {
+            this.con_redis_pool.releaseConnection(conn);
+        });
+
+        try {
+            const bit = await conn.getbit(key, offset);
+            return bit as 0 | 1;
+        } catch (error: any) {
+            console.error('GetBitmapBitSafe error:', error);
+            return null;
+        } finally {
+            defer.dispose();
+        }
+    }
 }

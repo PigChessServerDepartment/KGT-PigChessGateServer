@@ -18,7 +18,7 @@ async function CheckAndUpdateRefreshToken(usermessage:any,reqbody:any){
         }   
         else
         {
-            const refresh_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.REFRESH_TOKEN_SECRET!,{expiresIn:'7d'})
+            const refresh_token:string="Bearer "+jwt.sign({username:reqbody.UserName,userid:usermessage.id},process.env.REFRESH_TOKEN_SECRET!,{expiresIn:'7d'})
             const pgslres=await PgSqlMgr.getInstance()
             .Query(
                 "select update_user_token($1,$2,$3)",
@@ -40,7 +40,7 @@ async function CheckAndUpdateRefreshToken(usermessage:any,reqbody:any){
         return refresh_token;
     }
 }
-
+///////////////////////
 PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response) => {
     const reqbody:Model.UserLoginReq = req.body;
     let sql = "select find_user($1,$2,$3,$4,$5)";
@@ -54,7 +54,7 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
     if(redisresult){
         let usermessage=JSON.parse(redisresult);
         if(usermessage.password===reqbody.PassWord){
-            const access_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.ACCESS_TOKEN_SECRET!,{expiresIn:'1h'})
+            const access_token:string="Bearer "+jwt.sign({username:reqbody.UserName,userid:usermessage.id},process.env.ACCESS_TOKEN_SECRET!,{expiresIn:'1h'})
             resbody.access_token=access_token;
             resbody.error=Model.ErrorCode.Success;
             resbody.userid=usermessage.id;
@@ -79,7 +79,7 @@ PigChessApiRoute.post('/PigChessApi/UserLogin',async (req:Request, res:Response)
             if(userData.exits===1)
             {
                 // const tokenStr:string="Bearer "+jwt.sign({username:reqbody.UserName},secretkey,{expiresIn:'1h'})
-                const access_token:string="Bearer "+jwt.sign({username:reqbody.UserName},process.env.ACCESS_TOKEN_SECRET!,{expiresIn:'1h'})
+                const access_token:string="Bearer "+jwt.sign({username:reqbody.UserName,userid:userData.id},process.env.ACCESS_TOKEN_SECRET!,{expiresIn:'1h'})
                 resbody.error=Model.ErrorCode.Success;
                 resbody.access_token=access_token;
                 resbody.userid=userData.id;
